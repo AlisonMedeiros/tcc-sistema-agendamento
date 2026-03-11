@@ -4,7 +4,7 @@ Repositório oficial do Trabalho de Conclusão de Curso (TCC) do curso de Análi
 
 ## Desenvolvedores
 * Alison Medeiros - RA: 6324005
-* Ronaldo - RA: 6345007
+* Ronaldo Canavezzi - RA: 6324536
 
 ## Sobre o Projeto
 Este sistema tem como objetivo principal modernizar e otimizar a gestão do Estúdio de Beleza da profissional autônoma Débora Braga. O projeto propõe a substituição dos processos manuais e informais de agendamento por uma plataforma digital integrada, que contempla os seguintes módulos:

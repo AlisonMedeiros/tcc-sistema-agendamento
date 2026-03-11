@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda para Autónomos</title>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="app-container">
+        <h2>Minha Agenda</h2>
+        
+        <input type="text" id="cliente" placeholder="Nome do Cliente">
+        <input type="time" id="hora">
+        <button onclick="adicionarAgendamento()">Agendar Horário</button>
+
+        <div id="listaAgendamentos">
+            </div>
+    </div>
+
+<script>
+        // 1. Variáveis Globais
+        const inputCliente = document.getElementById('cliente');
+        const inputHora = document.getElementById('hora');
+        const divLista = document.getElementById('listaAgendamentos');
+        
+        // Esta é a nossa lista principal (Array). 
+        // Usando o localStorage pra guardar os dados no navegador pra simular um banco, retorna vazio se não achar nada [].
+        let meusAgendamentos = JSON.parse(localStorage.getItem('agenda-autonomo')) || [];
+
+        // 2. Função para atualizar o ecrã (Renderizar)
+        function atualizarEcra() {
+            // Limpa a lista antes de desenhar novamente
+            divLista.innerHTML = '';
+
+            // Percorre cada agendamento guardado na nossa lista
+            meusAgendamentos.forEach((item, index) => {
+                const novoAgendamento = document.createElement('div');
+                novoAgendamento.classList.add('item-agenda');
+
+                // Criamos o cartão com um botão que sabe exatamente a sua posição (index) na lista
+                novoAgendamento.innerHTML = `
+                    <div>
+                        <strong>${item.cliente}</strong><br>
+                        <small style="color: #666;">🕒 ${item.hora}</small>
+                    </div>
+                    <button onclick="removerAgendamento(${index})" class="btn-remover">X</button>
+                `;
+                
+                divLista.appendChild(novoAgendamento);
+            });
+        }
+
+        // 3. Função para adicionar o agendamento
+        function adicionarAgendamento() {
+            const clienteStr = inputCliente.value;
+            const horaStr = inputHora.value;
+
+            // Validação
+            if (clienteStr === "" || horaStr === "") {
+                alert("Por favor, preencha o nome e o horário.");
+                return;
+            }
+
+            // dados do novo cliente
+            const novoItem = {
+                cliente: clienteStr,
+                hora: horaStr
+            };
+
+            // objeto adicionado no Array
+            meusAgendamentos.push(novoItem);
+
+            // lista guardada no localStorage
+            localStorage.setItem('agenda-autonomo', JSON.stringify(meusAgendamentos));
+
+            // Limpa os campos
+            inputCliente.value = "";
+            inputHora.value = "";
+            inputCliente.focus();
+
+            // refaz os campos pra adicionar um novo horario
+            atualizarEcra();
+        }
+
+        // 4. Função para remover um agendamento
+        function removerAgendamento(posicaoIndex) {
+            // Remove 1 item da lista na posição especificada
+            meusAgendamentos.splice(posicaoIndex, 1);
+
+            // Atualiza o localStorage com a lista nova (sem o item apagado)
+            localStorage.setItem('agenda-autonomo', JSON.stringify(meusAgendamentos));
+
+            // Atualiza 
+            atualizarEcra();
+        }
+
+        // 5. Inicialização: Quando a página carrega, chama a função para mostrar o que já estava guardado
+        atualizarEcra();
+        
+    </script>
+</body>
+</html>
