@@ -12,15 +12,14 @@ Este sistema tem como objetivo principal modernizar e otimizar a gestão do Est�
 * **Módulo de Autoagendamento:** Interface voltada para as clientes, permitindo a visualização de disponibilidade e marcação remota de horários.
 * **Módulo de Gestão de Agenda:** Painel administrativo para a profissional, possibilitando a parametrização de serviços, duração de atendimentos e bloqueio de horários.
 * **Módulo de Controle Financeiro:** Sistema de registro de transações (entradas e saídas), métodos de pagamento e fluxo de caixa.
-* **Módulo de Gestão de Estoque:** Controle de inventário de materiais de consumo, permitindo o registro de movimentações (entradas, saídas e ajustes de inventário) para garantir o suporte adequado às operações diárias.
 
 ## Documentação Técnica
 Toda a documentação referente à engenharia de requisitos e modelagem do sistema encontra-se no diretório `/docs`:
-1. Solicitação de Desenvolvimento do Sistema
-2. Documento de Requisitos Técnicos
-3. Modelo Entidade-Relacionamento (MER)
-4. Documento de Fluxo de Dados (DFD)
-5. Planejamento de Sprints e Backlog do Produto
+1. Solicitação de Desenvolvimento do Sistema (considerando módulos de autoagendamento, gestão de agenda e controle financeiro, **sem** controle de estoque).
+2. Documento de Requisitos Técnicos, atualizado para refletir apenas os módulos de agenda e financeiro.
+3. Modelo Entidade-Relacionamento (MER), modelando entidades como clientes, serviços, agendamentos e registros financeiros, sem tabelas de estoque.
+4. Documento de Fluxo de Dados (DFD), focado nos fluxos de agendamento, confirmação de atendimento e registro financeiro.
+5. Planejamento de Sprints e Backlog do Produto, priorizando funcionalidades ligadas ao agendamento e ao controle financeiro.
 
 ## Tecnologias e Ferramentas (Previsão)
 * **Controle de Versão:** Git e GitHub
