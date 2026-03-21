@@ -11,7 +11,9 @@
 
     <div class="app-container">
         <h2>Minha Agenda</h2>
-        
+        <div id="servicosDoBanco" style="margin-bottom: 20px; color: var(--roxo-principal); font-weight: bold;">
+    Carregando serviços do banco de dados...
+</div>
         <input type="text" id="cliente" placeholder="Nome do Cliente">
         <input type="time" id="hora">
         <button onclick="adicionarAgendamento()">Agendar Horário</button>
@@ -25,7 +27,87 @@
         const inputCliente = document.getElementById('cliente');
         const inputHora = document.getElementById('hora');
         const divLista = document.getElementById('listaAgendamentos');
+        // --- FUNÇÃO: PUXAR DADOS DO BANCO (SERVIÇOS E PAGAMENTOS) ---
+async function carregarDadosIniciais() {
+    try {
+        // 1. Carregar Serviços
+        const resServicos = await fetch('http://localhost:3000/servicos');
+        const servicos = await resServicos.json();
+        const selectServico = document.getElementById('servico');
         
+        selectServico.innerHTML = '<option value="" disabled selected>Selecione um serviço...</option>';
+        servicos.forEach(s => {
+            selectServico.innerHTML += `<option value="${s.id_servico}">${s.nome} - R$ ${s.preco_padrao}</option>`;
+        });
+// --- FUNÇÃO: ENVIAR AGENDAMENTO PARA O BANCO ---
+async function realizarAgendamento(event) {
+    event.preventDefault(); // Impede a página de recarregar e perder os dados
+
+    const dados = {
+        nome_cliente: document.getElementById('nome').value,
+        data_hora: document.getElementById('data').value,
+        id_servico: document.getElementById('servico').value,
+        id_metodo: document.getElementById('pagamento').value
+    };
+
+    try {
+        const resposta = await fetch('http://localhost:3000/agendar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+
+        if (resposta.ok) {
+            alert('✅ Sucesso! Agendamento realizado para o Estúdio Débora Braga.');
+            document.getElementById('formAgendamento').reset(); // Limpa os campos
+        } else {
+            alert('❌ Erro ao agendar. Tente novamente.');
+        }
+    } catch (erro) {
+        console.error("Erro no envio:", erro);
+        alert('Servidor fora do ar!');
+    }
+}
+
+// --- CONECTAR O FORMULÁRIO À FUNÇÃO ---
+// Esta linha "escuta" o momento que você clica no botão de agendar
+document.getElementById('formAgendamento').addEventListener('submit', realizarAgendamento);
+        // 2. Carregar Formas de Pagamento
+        const resPagamentos = await fetch('http://localhost:3000/pagamentos');
+        const pagamentos = await resPagamentos.json();
+        const selectPagamento = document.getElementById('pagamento'); // Verifique se o ID no seu HTML é 'pagamento'
+        
+        selectPagamento.innerHTML = '<option value="" disabled selected>Forma de pagamento...</option>';
+        pagamentos.forEach(p => {
+            selectPagamento.innerHTML += `<option value="${p.id_metodo}">${p.nome_metodo}</option>`;
+        });
+
+        // Limpa a div de teste se ela existir
+        const divTeste = document.getElementById('servicosDoBanco');
+        if(divTeste) divTeste.style.display = 'none';
+
+    } catch (erro) {
+        console.error("Erro ao carregar dados do banco:", erro);
+    }
+}
+
+// Chama a função ao abrir a página
+carregarDadosIniciais();
+
+        // Opcional: remover aquela div de teste de cima se quiser limpar o visual
+        const divTeste = document.getElementById('servicosDoBanco');
+        if(divTeste) divTeste.style.display = 'none';
+        
+    } catch (erro) {
+        console.error("Erro ao carregar serviços no select:", erro);
+    }
+
+}
+
+// Chama a função assim que a página carrega
+carregarServicos();
+// -----------------------------------------
+
         // Esta é a nossa lista principal (Array). 
         // Usando o localStorage pra guardar os dados no navegador pra simular um banco, retorna vazio se não achar nada [].
         let meusAgendamentos = JSON.parse(localStorage.getItem('agenda-autonomo')) || [];
@@ -44,7 +126,7 @@
                 novoAgendamento.innerHTML = `
                     <div>
                         <strong>${item.cliente}</strong><br>
-                        <small style="color: #666;">🕒 ${item.hora}</small>
+                        <small style="color: #666;"> ${item.hora}</small>
                     </div>
                     <button onclick="removerAgendamento(${index})" class="btn-remover">X</button>
                 `;
