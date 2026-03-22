@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendamento – Gündem</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="icon-192.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+    <div class="app-container app-container--wide">
+        <h2>Agendar horário</h2>
+        <p class="subtitulo">Preencha os dados e confirme. A API grava no PostgreSQL.</p>
+
+        <div id="statusApi" class="status-api" role="status" aria-live="polite">
+            A carregar serviços e formas de pagamento…
+        </div>
+
+        <form id="formAgendamento" class="form-agendamento" novalidate>
+            <label class="field-label" for="nome">Nome</label>
+            <input type="text" id="nome" name="nome" required autocomplete="name" placeholder="Nome completo">
+
+            <label class="field-label" for="telefone">Telefone</label>
+            <input type="tel" id="telefone" name="telefone" autocomplete="tel" placeholder="Ex.: 11999990000 (recomendado)">
+
+            <label class="field-label" for="email">E-mail <span class="opcional">(opcional)</span></label>
+            <input type="email" id="email" name="email" autocomplete="email" placeholder="email@exemplo.com">
+
+            <label class="field-label" for="data_hora_inicio">Data e hora de início</label>
+            <input type="datetime-local" id="data_hora_inicio" name="data_hora_inicio" required>
+
+            <label class="field-label" for="servico">Serviço</label>
+            <select id="servico" name="servico" required>
+                <option value="" disabled selected>Selecione um serviço…</option>
+            </select>
+
+            <label class="field-label" for="pagamento">Forma de pagamento <span class="opcional">(opcional)</span></label>
+            <select id="pagamento" name="pagamento">
+                <option value="">Não registrar agora</option>
+            </select>
+
+            <label class="field-label" for="observacoes">Observações <span class="opcional">(opcional)</span></label>
+            <textarea id="observacoes" name="observacoes" rows="2" placeholder="Preferências, alergias, etc."></textarea>
+
+            <button type="submit" id="btnEnviar">Confirmar agendamento</button>
+        </form>
+
+        <section class="secao-lista" aria-labelledby="tituloLista">
+            <h3 id="tituloLista">Últimos agendamentos</h3>
+            <div id="listaAgendamentos" class="lista-agendamentos"></div>
+        </section>
+    </div>
+
+    <script>
+        (function () {
+            var API_BASE = window.location.protocol === 'file:'
+                ? 'http://localhost:3000'
+                : '';
+
+            function apiUrl(caminho) {
+                return API_BASE + caminho;
+            }
+
+            var statusEl = document.getElementById('statusApi');
+            var form = document.getElementById('formAgendamento');
+            var selectServico = document.getElementById('servico');
+            var selectPagamento = document.getElementById('pagamento');
+            var listaEl = document.getElementById('listaAgendamentos');
+            var btnEnviar = document.getElementById('btnEnviar');
+
+            function setStatus(msg, tipo) {
+                statusEl.textContent = msg;
+                statusEl.className = 'status-api' + (tipo ? ' status-api--' + tipo : '');
+            }
+
+            function formatarData(iso) {
+                if (!iso) return '—';
+                var d = new Date(iso);
+                if (isNaN(d.getTime())) return iso;
+                return d.toLocaleString('pt-BR', {
+                    dateStyle: 'short',
+                    timeStyle: 'short'
+                });
+            }
+
+            function renderLista(rows) {
+                listaEl.innerHTML = '';
+                if (!rows || !rows.length) {
+                    listaEl.innerHTML = '<p class="lista-vazia">Ainda não há agendamentos registados.</p>';
+                    return;
+                }
+                rows.forEach(function (a) {
+                    var card = document.createElement('div');
+                    card.className = 'item-agenda';
+                    card.innerHTML =
+                        '<div class="item-agenda__texto">' +
+                        '<strong>' + escapeHtml(a.cliente) + '</strong><br>' +
+                        '<small class="item-agenda__meta">' + escapeHtml(a.servico) + '</small><br>' +
+                        '<small class="item-agenda__meta">' + formatarData(a.data_hora_inicio) +
+                        ' · <span class="status-tag">' + escapeHtml(a.status) + '</span></small>' +
+                        '</div>';
+                    listaEl.appendChild(card);
+                });
+            }
+
+            function escapeHtml(s) {
+                if (s == null) return '';
+                var div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
+            }
+
+            async function carregarSelectsELista() {
+                setStatus('A carregar dados…', 'info');
+                try {
+                    var resS = await fetch(apiUrl('/servicos'));
+                    if (!resS.ok) throw new Error('Falha ao carregar serviços');
+                    var servicos = await resS.json();
+
+                    selectServico.innerHTML = '<option value="" disabled selected>Selecione um serviço…</option>';
+                    servicos.forEach(function (s) {
+                        var opt = document.createElement('option');
+                        opt.value = s.id_servico;
+                        opt.textContent = s.nome + ' — R$ ' + Number(s.preco_padrao).toFixed(2) + ' (' + s.duracao_minutos + ' min)';
+                        selectServico.appendChild(opt);
+                    });
+
+                    var resP = await fetch(apiUrl('/pagamentos'));
+                    if (!resP.ok) throw new Error('Falha ao carregar pagamentos');
+                    var pagamentos = await resP.json();
+
+                    selectPagamento.innerHTML = '<option value="">Não registrar agora</option>';
+                    pagamentos.forEach(function (p) {
+                        var opt = document.createElement('option');
+                        opt.value = p.id_metodo_pagamento;
+                        opt.textContent = p.nome;
+                        selectPagamento.appendChild(opt);
+                    });
+
+                    var resA = await fetch(apiUrl('/agendamentos?limite=20'));
+                    if (!resA.ok) throw new Error('Falha ao carregar agendamentos');
+                    var agendamentos = await resA.json();
+                    renderLista(agendamentos);
+
+                    setStatus('Ligado à API. Pode agendar.', 'ok');
+                } catch (e) {
+                    console.error(e);
+                    setStatus(
+                        'Não foi possível falar com a API. Inicie o servidor (npm run dev) e abra esta página em http://localhost:3000/index.html',
+                        'erro'
+                    );
+                }
+            }
+
+            form.addEventListener('submit', async function (ev) {
+                ev.preventDefault();
+                var nome = document.getElementById('nome').value.trim();
+                var telefone = document.getElementById('telefone').value.trim();
+                var email = document.getElementById('email').value.trim();
+                var dataHora = document.getElementById('data_hora_inicio').value;
+                var idServico = document.getElementById('servico').value;
+                var idMetodo = document.getElementById('pagamento').value;
+                var observacoes = document.getElementById('observacoes').value.trim();
+
+                if (!nome || !dataHora || !idServico) {
+                    alert('Preencha nome, data/hora e serviço.');
+                    return;
+                }
+
+                var payload = {
+                    nome_cliente: nome,
+                    telefone: telefone || null,
+                    email: email || null,
+                    id_servico: Number(idServico),
+                    data_hora_inicio: dataHora,
+                    id_metodo_pagamento: idMetodo ? Number(idMetodo) : null,
+                    observacoes: observacoes || null
+                };
+
+                btnEnviar.disabled = true;
+                setStatus('A enviar…', 'info');
+                try {
+                    var res = await fetch(apiUrl('/agendar'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    var body = await res.json().catch(function () { return {}; });
+                    if (!res.ok) {
+                        throw new Error(body.erro || 'Erro ao agendar');
+                    }
+                    alert('Agendamento registado com sucesso.');
+                    form.reset();
+                    await carregarSelectsELista();
+                } catch (e) {
+                    console.error(e);
+                    alert(e.message || 'Erro ao agendar.');
+                    setStatus('Erro ao agendar. Verifique a consola e o servidor.', 'erro');
+                } finally {
+                    btnEnviar.disabled = false;
+                }
+            });
+
+            carregarSelectsELista();
+
+            // PWA Service Worker Registration
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                        console.log('Service Worker registrado com sucesso. Scope:', registration.scope);
+                    }).catch(function(err) {
+                        console.log('Falha ao registrar Service Worker:', err);
+                    });
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

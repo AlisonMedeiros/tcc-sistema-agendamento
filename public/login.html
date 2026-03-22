@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login – Gündem</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="icon-192.svg">
+</head>
+<body>
+    <div class="app-container">
+        <h2>Gündem Admin</h2>
+        <p class="subtitulo">Acesso restrito para a profissional</p>
+
+        <div id="statusLogin" class="status-api" style="display: none;" role="status"></div>
+
+        <form id="formLogin" class="form-agendamento" novalidate>
+            <label class="field-label" for="email">E-mail</label>
+            <input type="email" id="email" name="email" required autocomplete="email" placeholder="Seu e-mail de acesso">
+
+            <label class="field-label" for="senha">Senha</label>
+            <input type="password" id="senha" name="senha" required autocomplete="current-password" placeholder="Sua senha secreta">
+
+            <button type="submit" id="btnEntrar" style="margin-bottom: 12px;">Entrar</button>
+            
+            <button type="button" id="btnCriarConta" style="background-color: var(--amarelo-secundario); color: #fff;">Criar Conta</button>
+        </form>
+    </div>
+
+    <script>
+        (function () {
+            var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+            function apiUrl(caminho) { return API_BASE + caminho; }
+
+            var form = document.getElementById('formLogin');
+            var statusEl = document.getElementById('statusLogin');
+            var btnEntrar = document.getElementById('btnEntrar');
+
+            function setStatus(msg, tipo) {
+                statusEl.textContent = msg;
+                statusEl.className = 'status-api' + (tipo ? ' status-api--' + tipo : '');
+                statusEl.style.display = 'block';
+            }
+
+            form.addEventListener('submit', async function (ev) {
+                ev.preventDefault();
+                var email = document.getElementById('email').value.trim();
+                var senha = document.getElementById('senha').value.trim();
+
+                if (!email || !senha) {
+                    setStatus('Preencha e-mail e senha.', 'erro');
+                    return;
+                }
+
+                btnEntrar.disabled = true;
+                setStatus('A verificar credenciais...', 'info');
+
+                try {
+                    // mudanças no salvamento de dados no banco, agora de ADMIN e CLIENTE
+                    var res = await fetch(apiUrl('/login'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: email, senha: senha })
+                    });
+                    
+                    var body = await res.json().catch(function() { return {}; });
+
+                    if (res.ok) {
+                        setStatus('Bem-vindo, ' + body.usuario.nome + '!', 'ok');
+                        
+                        // registro de dados no banco
+                        localStorage.setItem('gudem_user_id', body.usuario.id);
+                        localStorage.setItem('gundem_user_nome', body.usuario.nome);
+                        localStorage.setItem('gundem_user_tipo', body.usuario.tipo);
+                        localStorage.setItem('gundem_token', body.token);
+
+                        // Lógica de Desvio (Redirecionamento entre admin e cliente)
+                        setTimeout(function() {
+                            if (body.usuario.tipo === 'admin') {
+                                window.location.href = 'admin.html'; // Painel da Débora Braga
+                            } else {
+                                window.location.href = 'index.html'; // Área de agendamento da cliente
+                            }
+                        }, 1000);
+                    }
+
+                    // Sucesso! Guarda o token/id e redireciona para o painel admin
+                    setStatus('Login efetuado com sucesso!', 'ok');
+                    if (body.usuario.tipo === 'admin') {
+                            window.location.href = 'admin.html';
+                        } else {
+                            window.location.href = 'cliente.html'; // <--- Nova pagina de cliente!
+                    }
+                    // Guardar token no localStorage
+                    localStorage.setItem('gundem_token', body.token);
+                    
+                    setTimeout(function() {
+                        window.location.href = 'admin.html';
+                    }, 1000);
+
+                } catch (e) {
+                    console.error(e);
+                    setStatus(e.message, 'erro');
+                } finally {
+                    btnEntrar.disabled = false;
+                }
+            });
+
+            document.getElementById('btnCriarConta').addEventListener('click', function() {
+                alert('falta criar a tela de cadastro!!!');
+            });
+        })();
+    </script>
+</body>
+</html>

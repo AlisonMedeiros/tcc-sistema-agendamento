@@ -1,0 +1,38 @@
+# Dependências do Node.js
+node_modules/
+
+# Arquivos de log
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Diretórios de build/compilação (TypeScript)
+dist/
+build/
+out/
+
+# Arquivos de ambiente e chaves de segurança (NUNCA subir para o GitHub)
+.env
+.env.test
+.env.production
+.env.local
+
+# Arquivos de configuração de editores e IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Arquivos gerados pelo Sistema Operacional
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

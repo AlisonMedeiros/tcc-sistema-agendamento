@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<script>
+    // Verifica se é realmente um admin
+    const tipo = localStorage.getItem('gundem_user_tipo');
+    if (tipo !== 'admin') {
+        alert('Acesso negado! Esta área é exclusiva para administradores.');
+        window.location.href = 'login.html';
+    }
+</script>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo – Gündem</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="icon-192.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body class="admin-body">
+    <header class="admin-header">
+        <div class="header-left">
+            <h1>Güdem <span class="badge">Admin</span></h1>
+        </div>
+        <nav>
+            <a href="index.html" class="btn-voltar">← Voltar ao App</a>
+        </nav>
+    </header>
+
+    <main class="admin-main">
+        <!-- Resumo -->
+        <section class="admin-cards">
+            <div class="admin-card">
+                <h3>Agendamentos Recentes</h3>
+                <p id="totalAgendamentos" class="card-valor">...</p>
+            </div>
+            <div class="admin-card">
+                <h3>Serviços Ativos</h3>
+                <p id="totalServicos" class="card-valor">...</p>
+            </div>
+        </section>
+
+        <!-- Listagens -->
+        <section class="admin-tabelas">
+            <div class="tabela-container">
+                <h2>Todos os Agendamentos</h2>
+                <div id="statusApi" class="status-api" role="status">Carregando dados...</div>
+                <div class="table-responsive">
+                    <table class="table-admin" id="tableAgendamentos">
+                        <thead>
+                            <tr>
+                                <th>Data e Hora</th>
+                                <th>Cliente</th>
+                                <th>Serviço</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyAgendamentos">
+                            <!-- preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="tabela-container">
+                <h2>Serviços Disponíveis</h2>
+                <div class="table-responsive">
+                    <table class="table-admin" id="tableServicos">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Duração</th>
+                                <th>Preço (R$)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyServicos">
+                            <!-- preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        (function () {
+            var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+            function apiUrl(caminho) { return API_BASE + caminho; }
+
+            var statusEl = document.getElementById('statusApi');
+            var tbodyAg = document.getElementById('tbodyAgendamentos');
+            var tbodySv = document.getElementById('tbodyServicos');
+            var totalAg = document.getElementById('totalAgendamentos');
+            var totalSv = document.getElementById('totalServicos');
+
+            function setStatus(msg, tipo) {
+                statusEl.textContent = msg;
+                statusEl.className = 'status-api' + (tipo ? ' status-api--' + tipo : '');
+                statusEl.style.display = 'block';
+            }
+
+            function formatarData(iso) {
+                if (!iso) return '—';
+                var d = new Date(iso);
+                if (isNaN(d.getTime())) return iso;
+                return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+            }
+
+            function escapeHtml(s) {
+                if (s == null) return '';
+                var div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
+            }
+
+            async function carregarDashboard() {
+                try {
+                    // Carregar Agendamentos
+                    var resA = await fetch(apiUrl('/agendamentos?limite=100'));
+                    if (!resA.ok) throw new Error('Falha ao carregar agendamentos');
+                    var agendamentos = await resA.json();
+                    
+                    totalAg.textContent = agendamentos.length;
+                    
+                    if (agendamentos.length === 0) {
+                        tbodyAg.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum agendamento encontrado.</td></tr>';
+                    } else {
+                        tbodyAg.innerHTML = agendamentos.map(function(a) {
+                            return `<tr>
+                                <td>${formatarData(a.data_hora_inicio)}</td>
+                                <td><strong>${escapeHtml(a.cliente)}</strong><br><small>${escapeHtml(a.cliente_telefone || '')}</small></td>
+                                <td>${escapeHtml(a.servico)}</td>
+                                <td>
+                                    <span class="status-tag">${escapeHtml(a.status)}</span>
+                                    ${a.status === 'marcado' || a.status === 'confirmado' ? `
+                                        <div style="margin-top: 6px; display: flex; gap: 8px;">
+                                            <button onclick="atualizarStatus(${a.id_agendamento}, 'concluido')" class="btn-acao btn-concluir" title="Concluir Atendimento">✔</button>
+                                            <button onclick="atualizarStatus(${a.id_agendamento}, 'cancelado')" class="btn-acao btn-cancelar" title="Cancelar Agendamento">✖</button>
+                                        </div>
+                                    ` : ''}
+                                </td>
+                            </tr>`;
+                        }).join('');
+                    }
+
+                    // Carregar Serviços
+                    var resS = await fetch(apiUrl('/servicos'));
+                    if (!resS.ok) throw new Error('Falha ao carregar serviços');
+                    var servicos = await resS.json();
+                    
+                    totalSv.textContent = servicos.length;
+
+                    if (servicos.length === 0) {
+                        tbodySv.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum serviço encontrado.</td></tr>';
+                    } else {
+                        tbodySv.innerHTML = servicos.map(function(s) {
+                            return `<tr>
+                                <td><strong>${escapeHtml(s.nome)}</strong></td>
+                                <td>${s.duracao_minutos} min</td>
+                                <td>R$ ${Number(s.preco_padrao).toFixed(2)}</td>
+                            </tr>`;
+                        }).join('');
+                    }
+
+                    setStatus('Dashboard atualizado.', 'ok');
+                    setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+                } catch (e) {
+                    console.error(e);
+                    setStatus('Erro ao carregar os dados. Verifique a API.', 'erro');
+                }
+            }
+
+            window.atualizarStatus = async function(id, novoStatus) {
+                if (!confirm(`Deseja realmente marcar este agendamento como ${novoStatus}?`)) return;
+                
+                setStatus('Aguarde...', 'info');
+                try {
+                    var res = await fetch(apiUrl('/agendamentos/' + id + '/status'), {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: novoStatus })
+                    });
+                    
+                    if (!res.ok) throw new Error('Falha ao atualizar');
+                    
+                    await carregarDashboard(); 
+                } catch(e) {
+                    console.error(e);
+                    setStatus('Erro ao atualizar.', 'erro');
+                }
+            };
+
+            carregarDashboard();
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha Área – Gündem</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="admin-body"> <header class="admin-header">
+        <div class="header-left">
+            <h1>Olá, <span id="nomeCliente">...</span></h1>
+        </div>
+        <nav>
+            <a href="index.html" class="btn-voltar">Novo Agendamento</a>
+            <button onclick="logout()" class="btn-remover" style="margin-left: 10px;">Sair</button>
+        </nav>
+    </header>
+
+    <main class="admin-main">
+        <section class="tabela-container">
+            <h2>Meus Agendamentos Próximos</h2>
+            <div id="statusLista" class="status-api">A carregar os seus horários...</div>
+            
+            <div id="meusHorarios" class="lista-agendamentos">
+                </div>
+        </section>
+    </main>
+
+    <script>
+        (function () {
+            // Segurança: Se não for cliente, volta para o login
+            const tipo = localStorage.getItem('gudem_user_tipo');
+            if (tipo !== 'cliente') {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            document.getElementById('nomeCliente').textContent = localStorage.getItem('gudem_user_nome');
+
+            const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+            const listaEl = document.getElementById('meusHorarios');
+            const statusEl = document.getElementById('statusLista');
+
+            async function carregarMeusAgendamentos() {
+                try {
+                    const meuId = localStorage.getItem('gudem_user_id');
+                    
+                    // Chamamos a API passando o nosso ID na URL!
+                    const res = await fetch(API_BASE + '/agendamentos?usuario_id=' + meuId);
+                    
+                    if (!res.ok) throw new Error('Falha na API');
+                    const agendamentos = await res.json();
+
+                    if (agendamentos.length === 0) {
+                        listaEl.innerHTML = '<p class="lista-vazia">Ainda não tem horários marcados.</p>';
+                    } else {
+                        listaEl.innerHTML = agendamentos.map(a => `
+                            <div class="item-agenda">
+                                <div>
+                                    <strong>${a.servico}</strong><br>
+                                    <small>📅 ${new Date(a.data_hora_inicio).toLocaleString('pt-BR')}</small><br>
+                                    <span class="status-tag">${a.status}</span>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                    statusEl.style.display = 'none';
+                } catch (e) {
+                    statusEl.textContent = "Erro ao carregar agendamentos.";
+                    statusEl.className = "status-api status-api--erro";
+                }
+            }
+
+            window.logout = function() {
+                localStorage.clear();
+                window.location.href = 'login.html';
+            };
+
+            carregarMeusAgendamentos();
+        })();
+    </script>
+</body>
+</html>
