@@ -231,6 +231,35 @@ app.post('/agendar', async (req, res) => {
     }
 });
 
+/** Atualizar status do agendamento (Ex: pelo painel admin) */
+app.put('/agendamentos/:id/status', async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    if (!['marcado', 'confirmado', 'concluido', 'cancelado'].includes(status)) {
+        return res.status(400).json({ erro: 'Status inválido.' });
+    }
+
+    try {
+        const resultado = await db.query(
+            `UPDATE agendamentos 
+             SET status = $1, atualizado_em = NOW() 
+             WHERE id_agendamento = $2 
+             RETURNING id_agendamento, status`,
+            [status, id]
+        );
+
+        if (resultado.rows.length === 0) {
+            return res.status(404).json({ erro: 'Agendamento não encontrado.' });
+        }
+
+        res.json({ mensagem: 'Status atualizado com sucesso.', agendamento: resultado.rows[0] });
+    } catch (erro) {
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao atualizar o status do agendamento.' });
+    }
+});
+
 // Servir index.html e assets depois das rotas da API (GET / continua sendo JSON)
 app.use(express.static(path.join(__dirname, '..')));
 
