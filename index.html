@@ -3,185 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agenda para Autónomos</title>
-    
+    <title>Agendamento – Güdem</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="icon-192.svg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
+    <div class="app-container app-container--wide">
+        <h2>Agendar horário</h2>
+        <p class="subtitulo">Preencha os dados e confirme. A API grava no PostgreSQL.</p>
 
-    <div class="app-container">
-        <h2>Minha Agenda</h2>
-        <div id="servicosDoBanco" style="margin-bottom: 20px; color: var(--roxo-principal); font-weight: bold;">
-    Carregando serviços do banco de dados...
-</div>
-        <input type="text" id="cliente" placeholder="Nome do Cliente">
-        <input type="time" id="hora">
-        <button onclick="adicionarAgendamento()">Agendar Horário</button>
+        <div id="statusApi" class="status-api" role="status" aria-live="polite">
+            A carregar serviços e formas de pagamento…
+        </div>
 
-        <div id="listaAgendamentos">
-            </div>
+        <form id="formAgendamento" class="form-agendamento" novalidate>
+            <label class="field-label" for="nome">Nome</label>
+            <input type="text" id="nome" name="nome" required autocomplete="name" placeholder="Nome completo">
+
+            <label class="field-label" for="telefone">Telefone</label>
+            <input type="tel" id="telefone" name="telefone" autocomplete="tel" placeholder="Ex.: 11999990000 (recomendado)">
+
+            <label class="field-label" for="email">E-mail <span class="opcional">(opcional)</span></label>
+            <input type="email" id="email" name="email" autocomplete="email" placeholder="email@exemplo.com">
+
+            <label class="field-label" for="data_hora_inicio">Data e hora de início</label>
+            <input type="datetime-local" id="data_hora_inicio" name="data_hora_inicio" required>
+
+            <label class="field-label" for="servico">Serviço</label>
+            <select id="servico" name="servico" required>
+                <option value="" disabled selected>Selecione um serviço…</option>
+            </select>
+
+            <label class="field-label" for="pagamento">Forma de pagamento <span class="opcional">(opcional)</span></label>
+            <select id="pagamento" name="pagamento">
+                <option value="">Não registrar agora</option>
+            </select>
+
+            <label class="field-label" for="observacoes">Observações <span class="opcional">(opcional)</span></label>
+            <textarea id="observacoes" name="observacoes" rows="2" placeholder="Preferências, alergias, etc."></textarea>
+
+            <button type="submit" id="btnEnviar">Confirmar agendamento</button>
+        </form>
+
+        <section class="secao-lista" aria-labelledby="tituloLista">
+            <h3 id="tituloLista">Últimos agendamentos</h3>
+            <div id="listaAgendamentos" class="lista-agendamentos"></div>
+        </section>
     </div>
 
-<script>
-        // 1. Variáveis Globais
-        const inputCliente = document.getElementById('cliente');
-        const inputHora = document.getElementById('hora');
-        const divLista = document.getElementById('listaAgendamentos');
-        // --- FUNÇÃO: PUXAR DADOS DO BANCO (SERVIÇOS E PAGAMENTOS) ---
-async function carregarDadosIniciais() {
-    try {
-        // 1. Carregar Serviços
-        const resServicos = await fetch('http://localhost:3000/servicos');
-        const servicos = await resServicos.json();
-        const selectServico = document.getElementById('servico');
-        
-        selectServico.innerHTML = '<option value="" disabled selected>Selecione um serviço...</option>';
-        servicos.forEach(s => {
-            selectServico.innerHTML += `<option value="${s.id_servico}">${s.nome} - R$ ${s.preco_padrao}</option>`;
-        });
-// --- FUNÇÃO: ENVIAR AGENDAMENTO PARA O BANCO ---
-async function realizarAgendamento(event) {
-    event.preventDefault(); // Impede a página de recarregar e perder os dados
+    <script>
+        (function () {
+            var API_BASE = window.location.protocol === 'file:'
+                ? 'http://localhost:3000'
+                : '';
 
-    const dados = {
-        nome_cliente: document.getElementById('nome').value,
-        data_hora: document.getElementById('data').value,
-        id_servico: document.getElementById('servico').value,
-        id_metodo: document.getElementById('pagamento').value
-    };
-
-    try {
-        const resposta = await fetch('http://localhost:3000/agendar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dados)
-        });
-
-        if (resposta.ok) {
-            alert('✅ Sucesso! Agendamento realizado para o Estúdio Débora Braga.');
-            document.getElementById('formAgendamento').reset(); // Limpa os campos
-        } else {
-            alert('❌ Erro ao agendar. Tente novamente.');
-        }
-    } catch (erro) {
-        console.error("Erro no envio:", erro);
-        alert('Servidor fora do ar!');
-    }
-}
-
-// --- CONECTAR O FORMULÁRIO À FUNÇÃO ---
-// Esta linha "escuta" o momento que você clica no botão de agendar
-document.getElementById('formAgendamento').addEventListener('submit', realizarAgendamento);
-        // 2. Carregar Formas de Pagamento
-        const resPagamentos = await fetch('http://localhost:3000/pagamentos');
-        const pagamentos = await resPagamentos.json();
-        const selectPagamento = document.getElementById('pagamento'); // Verifique se o ID no seu HTML é 'pagamento'
-        
-        selectPagamento.innerHTML = '<option value="" disabled selected>Forma de pagamento...</option>';
-        pagamentos.forEach(p => {
-            selectPagamento.innerHTML += `<option value="${p.id_metodo}">${p.nome_metodo}</option>`;
-        });
-
-        // Limpa a div de teste se ela existir
-        const divTeste = document.getElementById('servicosDoBanco');
-        if(divTeste) divTeste.style.display = 'none';
-
-    } catch (erro) {
-        console.error("Erro ao carregar dados do banco:", erro);
-    }
-}
-
-// Chama a função ao abrir a página
-carregarDadosIniciais();
-
-        // Opcional: remover aquela div de teste de cima se quiser limpar o visual
-        const divTeste = document.getElementById('servicosDoBanco');
-        if(divTeste) divTeste.style.display = 'none';
-        
-    } catch (erro) {
-        console.error("Erro ao carregar serviços no select:", erro);
-    }
-
-}
-
-// Chama a função assim que a página carrega
-carregarServicos();
-// -----------------------------------------
-
-        // Esta é a nossa lista principal (Array). 
-        // Usando o localStorage pra guardar os dados no navegador pra simular um banco, retorna vazio se não achar nada [].
-        let meusAgendamentos = JSON.parse(localStorage.getItem('agenda-autonomo')) || [];
-
-        // 2. Função para atualizar o ecrã (Renderizar)
-        function atualizarEcra() {
-            // Limpa a lista antes de desenhar novamente
-            divLista.innerHTML = '';
-
-            // Percorre cada agendamento guardado na nossa lista
-            meusAgendamentos.forEach((item, index) => {
-                const novoAgendamento = document.createElement('div');
-                novoAgendamento.classList.add('item-agenda');
-
-                // Criamos o cartão com um botão que sabe exatamente a sua posição (index) na lista
-                novoAgendamento.innerHTML = `
-                    <div>
-                        <strong>${item.cliente}</strong><br>
-                        <small style="color: #666;"> ${item.hora}</small>
-                    </div>
-                    <button onclick="removerAgendamento(${index})" class="btn-remover">X</button>
-                `;
-                
-                divLista.appendChild(novoAgendamento);
-            });
-        }
-
-        // 3. Função para adicionar o agendamento
-        function adicionarAgendamento() {
-            const clienteStr = inputCliente.value;
-            const horaStr = inputHora.value;
-
-            // Validação
-            if (clienteStr === "" || horaStr === "") {
-                alert("Por favor, preencha o nome e o horário.");
-                return;
+            function apiUrl(caminho) {
+                return API_BASE + caminho;
             }
 
-            // dados do novo cliente
-            const novoItem = {
-                cliente: clienteStr,
-                hora: horaStr
-            };
+            var statusEl = document.getElementById('statusApi');
+            var form = document.getElementById('formAgendamento');
+            var selectServico = document.getElementById('servico');
+            var selectPagamento = document.getElementById('pagamento');
+            var listaEl = document.getElementById('listaAgendamentos');
+            var btnEnviar = document.getElementById('btnEnviar');
 
-            // objeto adicionado no Array
-            meusAgendamentos.push(novoItem);
+            function setStatus(msg, tipo) {
+                statusEl.textContent = msg;
+                statusEl.className = 'status-api' + (tipo ? ' status-api--' + tipo : '');
+            }
 
-            // lista guardada no localStorage
-            localStorage.setItem('agenda-autonomo', JSON.stringify(meusAgendamentos));
+            function formatarData(iso) {
+                if (!iso) return '—';
+                var d = new Date(iso);
+                if (isNaN(d.getTime())) return iso;
+                return d.toLocaleString('pt-BR', {
+                    dateStyle: 'short',
+                    timeStyle: 'short'
+                });
+            }
 
-            // Limpa os campos
-            inputCliente.value = "";
-            inputHora.value = "";
-            inputCliente.focus();
+            function renderLista(rows) {
+                listaEl.innerHTML = '';
+                if (!rows || !rows.length) {
+                    listaEl.innerHTML = '<p class="lista-vazia">Ainda não há agendamentos registados.</p>';
+                    return;
+                }
+                rows.forEach(function (a) {
+                    var card = document.createElement('div');
+                    card.className = 'item-agenda';
+                    card.innerHTML =
+                        '<div class="item-agenda__texto">' +
+                        '<strong>' + escapeHtml(a.cliente) + '</strong><br>' +
+                        '<small class="item-agenda__meta">' + escapeHtml(a.servico) + '</small><br>' +
+                        '<small class="item-agenda__meta">' + formatarData(a.data_hora_inicio) +
+                        ' · <span class="status-tag">' + escapeHtml(a.status) + '</span></small>' +
+                        '</div>';
+                    listaEl.appendChild(card);
+                });
+            }
 
-            // refaz os campos pra adicionar um novo horario
-            atualizarEcra();
-        }
+            function escapeHtml(s) {
+                if (s == null) return '';
+                var div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
+            }
 
-        // 4. Função para remover um agendamento
-        function removerAgendamento(posicaoIndex) {
-            // Remove 1 item da lista na posição especificada
-            meusAgendamentos.splice(posicaoIndex, 1);
+            async function carregarSelectsELista() {
+                setStatus('A carregar dados…', 'info');
+                try {
+                    var resS = await fetch(apiUrl('/servicos'));
+                    if (!resS.ok) throw new Error('Falha ao carregar serviços');
+                    var servicos = await resS.json();
 
-            // Atualiza o localStorage com a lista nova (sem o item apagado)
-            localStorage.setItem('agenda-autonomo', JSON.stringify(meusAgendamentos));
+                    selectServico.innerHTML = '<option value="" disabled selected>Selecione um serviço…</option>';
+                    servicos.forEach(function (s) {
+                        var opt = document.createElement('option');
+                        opt.value = s.id_servico;
+                        opt.textContent = s.nome + ' — R$ ' + Number(s.preco_padrao).toFixed(2) + ' (' + s.duracao_minutos + ' min)';
+                        selectServico.appendChild(opt);
+                    });
 
-            // Atualiza 
-            atualizarEcra();
-        }
+                    var resP = await fetch(apiUrl('/pagamentos'));
+                    if (!resP.ok) throw new Error('Falha ao carregar pagamentos');
+                    var pagamentos = await resP.json();
 
-        // 5. Inicialização: Quando a página carrega, chama a função para mostrar o que já estava guardado
-        atualizarEcra();
-        
+                    selectPagamento.innerHTML = '<option value="">Não registrar agora</option>';
+                    pagamentos.forEach(function (p) {
+                        var opt = document.createElement('option');
+                        opt.value = p.id_metodo_pagamento;
+                        opt.textContent = p.nome;
+                        selectPagamento.appendChild(opt);
+                    });
+
+                    var resA = await fetch(apiUrl('/agendamentos?limite=20'));
+                    if (!resA.ok) throw new Error('Falha ao carregar agendamentos');
+                    var agendamentos = await resA.json();
+                    renderLista(agendamentos);
+
+                    setStatus('Ligado à API. Pode agendar.', 'ok');
+                } catch (e) {
+                    console.error(e);
+                    setStatus(
+                        'Não foi possível falar com a API. Inicie o servidor (npm run dev) e abra esta página em http://localhost:3000/index.html',
+                        'erro'
+                    );
+                }
+            }
+
+            form.addEventListener('submit', async function (ev) {
+                ev.preventDefault();
+                var nome = document.getElementById('nome').value.trim();
+                var telefone = document.getElementById('telefone').value.trim();
+                var email = document.getElementById('email').value.trim();
+                var dataHora = document.getElementById('data_hora_inicio').value;
+                var idServico = document.getElementById('servico').value;
+                var idMetodo = document.getElementById('pagamento').value;
+                var observacoes = document.getElementById('observacoes').value.trim();
+
+                if (!nome || !dataHora || !idServico) {
+                    alert('Preencha nome, data/hora e serviço.');
+                    return;
+                }
+
+                var payload = {
+                    nome_cliente: nome,
+                    telefone: telefone || null,
+                    email: email || null,
+                    id_servico: Number(idServico),
+                    data_hora_inicio: dataHora,
+                    id_metodo_pagamento: idMetodo ? Number(idMetodo) : null,
+                    observacoes: observacoes || null
+                };
+
+                btnEnviar.disabled = true;
+                setStatus('A enviar…', 'info');
+                try {
+                    var res = await fetch(apiUrl('/agendar'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    var body = await res.json().catch(function () { return {}; });
+                    if (!res.ok) {
+                        throw new Error(body.erro || 'Erro ao agendar');
+                    }
+                    alert('Agendamento registado com sucesso.');
+                    form.reset();
+                    await carregarSelectsELista();
+                } catch (e) {
+                    console.error(e);
+                    alert(e.message || 'Erro ao agendar.');
+                    setStatus('Erro ao agendar. Verifique a consola e o servidor.', 'erro');
+                } finally {
+                    btnEnviar.disabled = false;
+                }
+            });
+
+            carregarSelectsELista();
+
+            // PWA Service Worker Registration
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                        console.log('Service Worker registrado com sucesso. Scope:', registration.scope);
+                    }).catch(function(err) {
+                        console.log('Falha ao registrar Service Worker:', err);
+                    });
+                });
+            }
+        })();
     </script>
 </body>
 </html>

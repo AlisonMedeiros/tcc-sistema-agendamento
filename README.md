@@ -1,4 +1,4 @@
-# Sistema de Agendamento e Gestão - Estúdio Débora Braga
+# Sistema de Agendamento e Gestão - Güdem
 
 Repositório oficial do Trabalho de Conclusão de Curso (TCC) do curso de Análise e Desenvolvimento de Sistemas.
 
@@ -21,8 +21,41 @@ Toda a documentação referente à engenharia de requisitos e modelagem do siste
 4. Documento de Fluxo de Dados (DFD), focado nos fluxos de agendamento, confirmação de atendimento e registro financeiro.
 5. Planejamento de Sprints e Backlog do Produto, priorizando funcionalidades ligadas ao agendamento e ao controle financeiro.
 
-## Tecnologias e Ferramentas (Previsão)
-* **Controle de Versão:** Git e GitHub
-* **Banco de Dados:** PostgreSQL ou MySQL
-* **Desenvolvimento Backend:** Node.js com Express
-* **Desenvolvimento Frontend:** (A definir)
+## Tecnologias e Ferramentas
+* **Controle de versão:** Git e GitHub  
+* **Banco de dados:** PostgreSQL  
+* **Backend:** Node.js com Express (`src/index.js`)  
+* **Frontend:** HTML, CSS e JavaScript (`index.html`, `style.css`)
+
+## Como executar localmente
+
+1. **Instalar dependências**
+   ```bash
+   npm install
+   ```
+
+2. **Configurar o banco**  
+   - Crie um banco vazio no PostgreSQL.  
+   - Copie `.env.example` para `.env` e ajuste usuário, senha, host, porta e nome do banco.  
+   - Aplique o esquema alinhado ao MER:
+   ```bash
+   psql -U seu_usuario -d nome_do_banco -f docs/schema.sql
+   ```
+
+3. **Subir a API (e servir o front na mesma origem)**
+   ```bash
+   npm run dev
+   ```
+   - Abra no navegador: **http://localhost:3000/index.html**  
+   - A rota **GET /** devolve um JSON de boas-vindas com a lista de endpoints.
+
+### Endpoints principais da API
+
+| Método | Caminho | Descrição |
+|--------|---------|-----------|
+| GET | `/servicos` | Lista serviços ativos |
+| GET | `/pagamentos` | Lista métodos de pagamento ativos |
+| GET | `/agendamentos` | Lista últimos agendamentos (parâmetro opcional `limite`) |
+| POST | `/agendar` | Cria cliente (se preciso), agendamento e, opcionalmente, lançamento financeiro |
+
+> Se ainda tiver uma base antiga com colunas diferentes (`data_hora`, `id_metodo`, etc.), recrie o banco ou migre as tabelas para o modelo em `docs/schema.sql`.

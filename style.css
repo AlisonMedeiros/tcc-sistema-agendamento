@@ -41,6 +41,10 @@ body {
     padding: 30px 24px;
 }
 
+.app-container--wide {
+    max-width: 480px;
+}
+
 /* 5. Títulos */
 h2 {
     text-align: center;
@@ -49,8 +53,10 @@ h2 {
     font-weight: 700;
 }
 
-/* 6. Inputs */
-input {
+/* 6. Inputs, selects e textarea */
+input,
+select,
+textarea {
     width: 100%;
     padding: 14px;
     margin-bottom: 16px;
@@ -61,10 +67,102 @@ input {
     transition: border-color 0.3s;
 }
 
+textarea {
+    resize: vertical;
+    min-height: 72px;
+    font-family: inherit;
+}
+
 /* Efeito ao clicar */
-input:focus {
+input:focus,
+select:focus,
+textarea:focus {
     outline: none;
     border-color: var(--roxo-principal);
+}
+
+.field-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--roxo-principal);
+    margin-bottom: 6px;
+}
+
+.opcional {
+    font-weight: 400;
+    color: #888;
+    font-size: 12px;
+}
+
+.subtitulo {
+    text-align: center;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
+    line-height: 1.4;
+}
+
+.status-api {
+    font-size: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    background: #f5f0f8;
+    color: var(--texto-escuro);
+}
+
+.status-api--ok {
+    background: #e8f5e9;
+    color: #1b5e20;
+}
+
+.status-api--erro {
+    background: #ffebee;
+    color: #b71c1c;
+}
+
+.status-api--info {
+    background: #e3f2fd;
+    color: #0d47a1;
+}
+
+.form-agendamento {
+    margin-bottom: 28px;
+}
+
+.secao-lista h3 {
+    font-size: 1rem;
+    color: var(--roxo-principal);
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.lista-agendamentos {
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.lista-vazia {
+    font-size: 14px;
+    color: #888;
+    text-align: center;
+    padding: 16px;
+}
+
+.item-agenda__meta {
+    color: #666;
+}
+
+.status-tag {
+    text-transform: capitalize;
+    font-weight: 600;
+    color: var(--roxo-principal);
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 /* 7. Botão Principal (Agendar) */
