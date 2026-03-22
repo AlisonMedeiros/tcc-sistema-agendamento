@@ -166,6 +166,29 @@ app.post('/agendar', async (req, res) => {
         const preco = srv.rows[0].preco_padrao;
         const fim = new Date(inicio.getTime() + duracaoMin * 60 * 1000);
 
+        // 1. Validação de Horário Comercial (08:00 às 18:00)
+        const horaInicio = inicio.getHours();
+        const horaFim = fim.getHours();
+        const minFim = fim.getMinutes();
+        
+        if (horaInicio < 8 || horaFim > 18 || (horaFim === 18 && minFim > 0)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ erro: 'O horário de atendimento do estúdio é das 08:00 às 18:00.' });
+        }
+
+        // 2. Validação de Choque de Horários
+        const conflito = await client.query(
+            `SELECT id_agendamento FROM agendamentos 
+             WHERE status != 'cancelado'
+             AND (data_hora_inicio < $2 AND data_hora_fim > $1)`,
+            [inicio.toISOString(), fim.toISOString()]
+        );
+
+        if (conflito.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ erro: 'Desculpe, este horário já está ocupado por outro atendimento.' });
+        }
+
         const ag = await client.query(
             `INSERT INTO agendamentos (
                 id_cliente, id_servico, data_hora_inicio, data_hora_fim, status, observacoes
