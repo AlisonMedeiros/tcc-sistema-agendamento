@@ -3,7 +3,11 @@ const express = require('express');
 const cors = require('cors');
 const db = require('./db');
 require('dotenv').config();
+<<<<<<< HEAD
 console.log("Teste de Senha no ENV:", process.env.DB_PASSWORD);
+=======
+
+>>>>>>> 2b1ae494bab3697332c0163af1362d3fef63be29
 const app = express();
 const porta = process.env.PORT || 3000;
 
@@ -13,7 +17,11 @@ app.use(express.json());
 app.get('/', (req, res) => {
     res.json({
         ok: true,
+<<<<<<< HEAD
         mensagem: 'API do Sistema de Agendamento – Gündem',
+=======
+        mensagem: 'API do Sistema de Agendamento – Güdem',
+>>>>>>> 2b1ae494bab3697332c0163af1362d3fef63be29
         rotas: ['GET /servicos', 'GET /pagamentos', 'GET /agendamentos', 'POST /agendar'],
     });
 });
@@ -259,6 +267,7 @@ app.put('/agendamentos/:id/status', async (req, res) => {
         res.status(500).json({ erro: 'Erro ao atualizar o status do agendamento.' });
     }
 });
+<<<<<<< HEAD
 /**
  * Rota de Autenticação (Login)
  * Verifica as credenciais na tabela 'usuarios'
@@ -305,6 +314,11 @@ app.post('/login', async (req, res) => {
 });
 // Servir index.html e assets depois das rotas da API (GET / continua sendo JSON)
 app.use(express.static(path.join(__dirname, '../public')));
+=======
+
+// Servir index.html e assets depois das rotas da API (GET / continua sendo JSON)
+app.use(express.static(path.join(__dirname, '..')));
+>>>>>>> 2b1ae494bab3697332c0163af1362d3fef63be29
 
 app.listen(porta, () => {
     console.log(`Servidor em http://localhost:${porta}`);

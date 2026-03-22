@@ -80,7 +80,9 @@ CREATE TABLE IF NOT EXISTS lancamentos_financeiros (
     id_lancamento        SERIAL PRIMARY KEY,
     id_agendamento       INTEGER REFERENCES agendamentos (id_agendamento) ON DELETE SET NULL,
     tipo                 tipo_lancamento NOT NULL,
+
     categoria            VARCHAR(100) NOT NULL, -- ADICIONADO: Categoria do lançamento (ex: 'Serviço', 'Insumos', 'Despesa Fixa')
+
     descricao            VARCHAR(255) NOT NULL,
     valor                NUMERIC(10, 2) NOT NULL CHECK (valor >= 0),
     data_lancamento      DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -89,17 +91,23 @@ CREATE TABLE IF NOT EXISTS lancamentos_financeiros (
     atualizado_em        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+
 -- ==========================================
 -- DADOS INICIAIS (SEED) PARA TESTAR A API
 -- ==========================================
 
 -- 1. Inserir métodos de pagamento
+
+-- Dados mínimos para testar a API / front-end
+
 INSERT INTO metodos_pagamento (nome, ativo)
 SELECT v.nome, TRUE
 FROM (VALUES ('Pix'), ('Dinheiro'), ('Cartão')) AS v(nome)
 WHERE NOT EXISTS (SELECT 1 FROM metodos_pagamento mp WHERE mp.nome = v.nome);
 
+
 -- 2. Inserir serviços padrões
+
 INSERT INTO servicos (nome, descricao, duracao_minutos, preco_padrao, ativo)
 SELECT v.nome, v.descricao, v.duracao, v.preco, TRUE
 FROM (
@@ -109,6 +117,7 @@ FROM (
         ('Coloração', 'Coloração completa', 120, 250.00)
 ) AS v(nome, descricao, duracao, preco)
 WHERE NOT EXISTS (SELECT 1 FROM servicos s WHERE s.nome = v.nome);
+
 
 -- 3. Inserir Usuários de Teste (Admin e Cliente) -> ADICIONADO AQUI!
 INSERT INTO usuarios (nome, email, senha_hash, tipo)
