@@ -58,7 +58,6 @@
                 setStatus('A verificar credenciais...', 'info');
 
                 try {
-                    // mudanças no salvamento de dados no banco, agora de ADMIN e CLIENTE
                     var res = await fetch(apiUrl('/login'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -67,37 +66,23 @@
                     
                     var body = await res.json().catch(function() { return {}; });
 
-                    if (res.ok) {
-                        setStatus('Bem-vindo, ' + body.usuario.nome + '!', 'ok');
-                        
-                        // registro de dados no banco
-                        localStorage.setItem('gudem_user_id', body.usuario.id);
-                        localStorage.setItem('gundem_user_nome', body.usuario.nome);
-                        localStorage.setItem('gundem_user_tipo', body.usuario.tipo);
-                        localStorage.setItem('gundem_token', body.token);
-
-                        // Lógica de Desvio (Redirecionamento entre admin e cliente)
-                        setTimeout(function() {
-                            if (body.usuario.tipo === 'admin') {
-                                window.location.href = 'admin.html'; // Painel da Débora Braga
-                            } else {
-                                window.location.href = 'index.html'; // Área de agendamento da cliente
-                            }
-                        }, 1000);
+                    if (!res.ok) {
+                        throw new Error(body.erro || 'Falha ao autenticar.');
                     }
 
-                    // Sucesso! Guarda o token/id e redireciona para o painel admin
-                    setStatus('Login efetuado com sucesso!', 'ok');
-                    if (body.usuario.tipo === 'admin') {
+                    setStatus('Bem-vindo, ' + body.usuario.nome + '!', 'ok');
+                    
+                    localStorage.setItem('gudem_user_id', body.usuario.id);
+                    localStorage.setItem('gundem_user_nome', body.usuario.nome);
+                    localStorage.setItem('gundem_user_tipo', body.usuario.tipo);
+                    localStorage.setItem('gundem_token', body.token);
+
+                    setTimeout(function() {
+                        if (body.usuario.tipo === 'admin') {
                             window.location.href = 'admin.html';
                         } else {
-                            window.location.href = 'cliente.html'; // <--- Nova pagina de cliente!
-                    }
-                    // Guardar token no localStorage
-                    localStorage.setItem('gundem_token', body.token);
-                    
-                    setTimeout(function() {
-                        window.location.href = 'admin.html';
+                            window.location.href = 'cliente.html';
+                        }
                     }, 1000);
 
                 } catch (e) {

@@ -3,11 +3,22 @@ const express = require('express');
 const cors = require('cors');
 const db = require('./db');
 require('dotenv').config();
-<<<<<<< HEAD
-console.log("Teste de Senha no ENV:", process.env.DB_PASSWORD);
-=======
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const SECRET_KEY = process.env.JWT_SECRET || 'gudem_secreto_super_seguro_2026';
 
->>>>>>> 2b1ae494bab3697332c0163af1362d3fef63be29
+function verificarToken(req, res, next) {
+    const token = req.headers['authorization'];
+    if (!token) return res.status(401).json({ erro: 'Acesso negado. Token não fornecido.' });
+
+    try {
+        const decoded = jwt.verify(token.replace('Bearer ', ''), SECRET_KEY);
+        req.usuario = decoded;
+        next();
+    } catch (e) {
+        res.status(401).json({ erro: 'Token inválido ou expirado.' });
+    }
+}
 const app = express();
 const porta = process.env.PORT || 3000;
 
@@ -17,11 +28,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
     res.json({
         ok: true,
-<<<<<<< HEAD
-        mensagem: 'API do Sistema de Agendamento – Gündem',
-=======
         mensagem: 'API do Sistema de Agendamento – Güdem',
->>>>>>> 2b1ae494bab3697332c0163af1362d3fef63be29
         rotas: ['GET /servicos', 'GET /pagamentos', 'GET /agendamentos', 'POST /agendar'],
     });
 });
@@ -240,7 +247,7 @@ app.post('/agendar', async (req, res) => {
 });
 
 /** Atualizar status do agendamento (Ex: pelo painel admin) */
-app.put('/agendamentos/:id/status', async (req, res) => {
+app.put('/agendamentos/:id/status', verificarToken, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     
@@ -267,22 +274,17 @@ app.put('/agendamentos/:id/status', async (req, res) => {
         res.status(500).json({ erro: 'Erro ao atualizar o status do agendamento.' });
     }
 });
-<<<<<<< HEAD
 /**
- * Rota de Autenticação (Login)
- * Verifica as credenciais na tabela 'usuarios'
+ * Rota de Autenticação (Login JWT)
  */
 app.post('/login', async (req, res) => {
     const { email, senha } = req.body;
 
-    // 1. Validação básica de entrada
     if (!email || !senha) {
         return res.status(400).json({ erro: 'E-mail e senha são obrigatórios.' });
     }
 
     try {
-        // 2. Consulta ao banco de dados
-        // IMPORTANTE: No futuro, use a biblioteca 'bcrypt' para comparar senhas criptografadas
         const resultado = await db.query(
             'SELECT id_usuario, nome, email, senha_hash, tipo FROM usuarios WHERE email = $1',
             [email.toLowerCase().trim()]
@@ -290,21 +292,34 @@ app.post('/login', async (req, res) => {
 
         const usuario = resultado.rows[0];
 
-        // 3. Verificação de existência e senha
-        if (!usuario || usuario.senha_hash !== senha) {
+        if (!usuario) {
             return res.status(401).json({ erro: 'E-mail ou senha incorretos.' });
         }
 
-        // 4. Sucesso no login
+        const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
+        // Fallback pra facilitar no TCC: Se a senha não começar com $, verifica sem criptografia. 
+        // (Isso é apenas para garantir que a inserção manual provisória sem hash no banco funcione).
+        let logou = false;
+        if (usuario.senha_hash.startsWith('$2b$')) {
+            logou = senhaValida;
+        } else if (usuario.senha_hash === senha) {
+            logou = true; 
+        }
+
+        if (!logou) {
+            return res.status(401).json({ erro: 'E-mail ou senha incorretos.' });
+        }
+
+        const token = jwt.sign(
+            { id: usuario.id_usuario, tipo: usuario.tipo },
+            SECRET_KEY,
+            { expiresIn: '8h' }
+        );
+
         res.json({
             mensagem: 'Login bem-sucedido!',
-            usuario: {
-                id: usuario.id_usuario,
-                nome: usuario.nome,
-                tipo: usuario.tipo
-            },
-            // Em um sistema real, aqui geraríamos um Token JWT
-            token: "sessao_ativa_" + usuario.id_usuario 
+            usuario: { id: usuario.id_usuario, nome: usuario.nome, tipo: usuario.tipo },
+            token
         });
 
     } catch (erro) {
@@ -312,13 +327,13 @@ app.post('/login', async (req, res) => {
         res.status(500).json({ erro: 'Erro interno no servidor ao tentar logar.' });
     }
 });
-// Servir index.html e assets depois das rotas da API (GET / continua sendo JSON)
-app.use(express.static(path.join(__dirname, '../public')));
-=======
 
-// Servir index.html e assets depois das rotas da API (GET / continua sendo JSON)
-app.use(express.static(path.join(__dirname, '..')));
->>>>>>> 2b1ae494bab3697332c0163af1362d3fef63be29
+// Servir arquivos do frontend
+const pastaPublica = path.resolve(__dirname, '../public');
+console.log('Servindo arquivos estáticos da pasta:', pastaPublica);
+app.use(express.static(pastaPublica));
+
+
 
 app.listen(porta, () => {
     console.log(`Servidor em http://localhost:${porta}`);

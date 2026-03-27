@@ -179,7 +179,10 @@
                 try {
                     var res = await fetch(apiUrl('/agendamentos/' + id + '/status'), {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + localStorage.getItem('gundem_token')
+                        },
                         body: JSON.stringify({ status: novoStatus })
                     });
                     
