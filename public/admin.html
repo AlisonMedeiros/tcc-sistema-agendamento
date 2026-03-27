@@ -50,7 +50,7 @@
         <!-- Gráficos (Serviços x Receitas) -->
         <section class="admin-charts" style="margin-bottom: 40px;">
             <div class="tabela-container">
-                <h2 style="margin-bottom: 24px;">Serviços x Receitas</h2>
+                <h2 style="margin-bottom: 24px;">Faturamento Anual (R$)</h2>
                 <div style="position: relative; height: 350px; width: 100%;">
                     <canvas id="graficoMensal"></canvas>
                 </div>
@@ -179,72 +179,53 @@
                     });
                     if (!res.ok) return;
                     var dados = await res.json();
-                    if (dados.length === 0) return;
-
+                    
                     var mesesNome = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-                    var labels = dados.map(d => {
-                        var partes = d.mes.split('-');
-                        return mesesNome[parseInt(partes[1], 10) - 1];
+                    var fat = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    var anoAtual = new Date().getFullYear().toString();
+
+                    dados.forEach(d => {
+                        var partes = d.mes.split('-'); // [YYYY, MM]
+                        if (partes[0] === anoAtual) {
+                            var index = parseInt(partes[1], 10) - 1;
+                            fat[index] = parseFloat(d.faturamento);
+                        }
                     });
-                    var qtd = dados.map(d => parseInt(d.total_agendamentos, 10));
-                    var fat = dados.map(d => parseFloat(d.faturamento));
 
                     var ctx = document.getElementById('graficoMensal').getContext('2d');
                     if (window.meuGrafico) window.meuGrafico.destroy();
                     
                     window.meuGrafico = new Chart(ctx, {
+                        type: 'bar',
                         data: {
-                            labels: labels,
+                            labels: mesesNome,
                             datasets: [
                                 {
-                                    type: 'bar',
-                                    label: 'Receitas (R$)',
+                                    label: 'Faturamento (R$)',
                                     data: fat,
                                     backgroundColor: '#5dc246',
                                     borderColor: '#27ae60',
                                     borderWidth: 1,
-                                    yAxisID: 'y'
-                                },
-                                {
-                                    type: 'line',
-                                    label: 'Serviços',
-                                    data: qtd,
-                                    backgroundColor: '#5b9bd5',
-                                    borderColor: '#2980b9',
-                                    borderWidth: 3,
-                                    pointBackgroundColor: '#2980b9',
-                                    tension: 0.3,
-                                    yAxisID: 'y1'
+                                    borderRadius: 4
                                 }
                             ]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            interaction: { mode: 'index', intersect: false },
                             plugins: {
                                 tooltip: {
                                     callbacks: {
                                         label: function(ctx) {
-                                            let val = ctx.raw;
-                                            if (ctx.dataset.type === 'bar') {
-                                                return 'Receitas: ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-                                            }
-                                            return 'Serviços: ' + val;
+                                            return 'Faturamento: ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ctx.raw);
                                         }
                                     }
                                 }
                             },
                             scales: {
                                 y: { 
-                                    type: 'linear', display: true, position: 'left',
-                                    title: { display: true, text: 'Faturamento (R$)' }
-                                },
-                                y1: { 
-                                    type: 'linear', display: true, position: 'right',
-                                    grid: { drawOnChartArea: false },
-                                    ticks: { stepSize: 1 },
-                                    title: { display: true, text: 'Qtd de Serviços' }
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Reais (R$)' }
                                 }
                             }
                         }
