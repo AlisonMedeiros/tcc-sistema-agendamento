@@ -117,16 +117,18 @@ app.get('/agendamentos', async (req, res) => {
 });
 
 /**
- * Estatísticas Mensais para o Chart.js
+ * Estatísticas Mensais (Serviços x Receitas)
  */
 app.get('/estatisticas/mensal', verificarToken, async (req, res) => {
     try {
         const resultado = await db.query(`
             SELECT 
-                TO_CHAR(data_hora_inicio, 'YYYY-MM') AS mes,
-                COUNT(id_agendamento) AS total_agendamentos
-            FROM agendamentos
-            WHERE status IN ('marcado', 'confirmado', 'concluido')
+                TO_CHAR(a.data_hora_inicio, 'YYYY-MM') AS mes,
+                COUNT(DISTINCT a.id_agendamento) AS total_agendamentos,
+                COALESCE(SUM(l.valor), 0) AS faturamento
+            FROM agendamentos a
+            LEFT JOIN lancamentos_financeiros l ON a.id_agendamento = l.id_agendamento AND l.tipo = 'entrada'
+            WHERE a.status IN ('marcado', 'confirmado', 'concluido')
             GROUP BY mes
             ORDER BY mes ASC
             LIMIT 12

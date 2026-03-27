@@ -47,6 +47,16 @@
             </div>
         </section>
 
+        <!-- Gráficos (Serviços x Receitas) -->
+        <section class="admin-charts" style="margin-bottom: 40px;">
+            <div class="tabela-container">
+                <h2 style="margin-bottom: 24px;">Serviços x Receitas</h2>
+                <div style="position: relative; height: 350px; width: 100%;">
+                    <canvas id="graficoMensal"></canvas>
+                </div>
+            </div>
+        </section>
+
         <!-- Listagens -->
         <section class="admin-tabelas">
             <div class="tabela-container">
@@ -91,16 +101,6 @@
                             <!-- preenchido via JS -->
                         </tbody>
                     </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- Gráficos -->
-        <section class="admin-charts" style="margin-bottom: 40px;">
-            <div class="tabela-container">
-                <h2 style="margin-bottom: 24px;">Tendências (Agendamentos por Mês)</h2>
-                <div style="position: relative; height: 350px; width: 100%;">
-                    <canvas id="graficoMensal"></canvas>
                 </div>
             </div>
         </section>
@@ -179,33 +179,74 @@
                     });
                     if (!res.ok) return;
                     var dados = await res.json();
-                    
                     if (dados.length === 0) return;
 
+                    var mesesNome = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
                     var labels = dados.map(d => {
                         var partes = d.mes.split('-');
-                        return partes[1] + '/' + partes[0];
+                        return mesesNome[parseInt(partes[1], 10) - 1];
                     });
-                    var valores = dados.map(d => parseInt(d.total_agendamentos));
+                    var qtd = dados.map(d => parseInt(d.total_agendamentos, 10));
+                    var fat = dados.map(d => parseFloat(d.faturamento));
 
                     var ctx = document.getElementById('graficoMensal').getContext('2d');
-                    new Chart(ctx, {
-                        type: 'bar',
+                    if (window.meuGrafico) window.meuGrafico.destroy();
+                    
+                    window.meuGrafico = new Chart(ctx, {
                         data: {
                             labels: labels,
-                            datasets: [{
-                                label: 'Agendamentos (Marcados/Confirmados/Concluídos)',
-                                data: valores,
-                                backgroundColor: 'rgba(78, 41, 91, 0.7)',
-                                borderColor: 'rgba(78, 41, 91, 1)',
-                                borderWidth: 1,
-                                borderRadius: 6
-                            }]
+                            datasets: [
+                                {
+                                    type: 'bar',
+                                    label: 'Receitas (R$)',
+                                    data: fat,
+                                    backgroundColor: '#5dc246',
+                                    borderColor: '#27ae60',
+                                    borderWidth: 1,
+                                    yAxisID: 'y'
+                                },
+                                {
+                                    type: 'line',
+                                    label: 'Serviços',
+                                    data: qtd,
+                                    backgroundColor: '#5b9bd5',
+                                    borderColor: '#2980b9',
+                                    borderWidth: 3,
+                                    pointBackgroundColor: '#2980b9',
+                                    tension: 0.3,
+                                    yAxisID: 'y1'
+                                }
+                            ]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(ctx) {
+                                            let val = ctx.raw;
+                                            if (ctx.dataset.type === 'bar') {
+                                                return 'Receitas: ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+                                            }
+                                            return 'Serviços: ' + val;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: { 
+                                    type: 'linear', display: true, position: 'left',
+                                    title: { display: true, text: 'Faturamento (R$)' }
+                                },
+                                y1: { 
+                                    type: 'linear', display: true, position: 'right',
+                                    grid: { drawOnChartArea: false },
+                                    ticks: { stepSize: 1 },
+                                    title: { display: true, text: 'Qtd de Serviços' }
+                                }
+                            }
                         }
                     });
                 } catch(e) { console.error("Erro no gráfico:", e); }
