@@ -301,6 +301,10 @@ button:active {
     box-shadow: 0 20px 40px rgba(78, 41, 91, 0.12);
 }
 
+.card-financeiro {
+    border-left-color: #2ecc71; /* Um visual de lucros! */
+}
+
 .admin-card h3 {
     color: #666;
     font-size: 15px;

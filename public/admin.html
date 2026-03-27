@@ -40,6 +40,10 @@
                 <h3>Serviços Ativos</h3>
                 <p id="totalServicos" class="card-valor">...</p>
             </div>
+            <div class="admin-card card-financeiro">
+                <h3>💰 Faturamento</h3>
+                <p id="totalFaturamento" class="card-valor">...</p>
+            </div>
         </section>
 
         <!-- Listagens -->
@@ -162,6 +166,16 @@
                                 <td>R$ ${Number(s.preco_padrao).toFixed(2)}</td>
                             </tr>`;
                         }).join('');
+                    }
+
+                    // Carregar Financeiro
+                    var resF = await fetch(apiUrl('/financeiro/resumo'), {
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
+                    });
+                    if (resF.ok) {
+                        var fin = await resF.json();
+                        document.getElementById('totalFaturamento').textContent = 
+                            fin.faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     }
 
                     setStatus('Dashboard atualizado.', 'ok');

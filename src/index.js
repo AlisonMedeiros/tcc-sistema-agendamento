@@ -275,6 +275,20 @@ app.put('/agendamentos/:id/status', verificarToken, async (req, res) => {
     }
 });
 /**
+ * Resumo Financeiro
+ * Retorna a soma de faturamentos entrantes.
+ */
+app.get('/financeiro/resumo', verificarToken, async (req, res) => {
+    try {
+        const resultado = await db.query(`SELECT COALESCE(SUM(valor), 0) AS total_faturamento FROM lancamentos_financeiros WHERE tipo = 'entrada'`);
+        res.json({ faturamento: Number(resultado.rows[0].total_faturamento) });
+    } catch (erro) {
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao extrair faturamento.' });
+    }
+});
+
+/**
  * Rota de Autenticação (Login JWT)
  */
 app.post('/login', async (req, res) => {
