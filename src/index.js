@@ -77,12 +77,14 @@ app.get('/pagamentos', async (req, res) => {
     }
 });
 
-/** Últimos agendamentos (para exibir na página) */
+/** Últimos agendamentos (com filtro opcional por data) */
 app.get('/agendamentos', async (req, res) => {
     try {
         const limite = Math.min(parseInt(req.query.limite, 10) || 50, 100);
-        const resultado = await db.query(
-            `SELECT
+        const dataFiltro = req.query.data;
+
+        let query = `
+            SELECT
                 a.id_agendamento,
                 c.nome AS cliente,
                 c.telefone AS cliente_telefone,
@@ -93,14 +95,46 @@ app.get('/agendamentos', async (req, res) => {
              FROM agendamentos a
              INNER JOIN clientes c ON c.id_cliente = a.id_cliente
              INNER JOIN servicos s ON s.id_servico = a.id_servico
-             ORDER BY a.data_hora_inicio DESC
-             LIMIT $1`,
-            [limite]
-        );
+        `;
+        const params = [];
+        
+        if (dataFiltro) {
+            query += ` WHERE CAST(a.data_hora_inicio AS DATE) = $1::date`;
+            params.push(dataFiltro);
+        }
+
+        query += ` ORDER BY a.data_hora_inicio DESC`;
+        
+        params.push(limite);
+        query += ` LIMIT $${params.length}`;
+
+        const resultado = await db.query(query, params);
         res.json(resultado.rows);
     } catch (erro) {
         console.error(erro);
         res.status(500).json({ erro: 'Erro ao buscar agendamentos.' });
+    }
+});
+
+/**
+ * Estatísticas Mensais para o Chart.js
+ */
+app.get('/estatisticas/mensal', verificarToken, async (req, res) => {
+    try {
+        const resultado = await db.query(`
+            SELECT 
+                TO_CHAR(data_hora_inicio, 'YYYY-MM') AS mes,
+                COUNT(id_agendamento) AS total_agendamentos
+            FROM agendamentos
+            WHERE status IN ('marcado', 'confirmado', 'concluido')
+            GROUP BY mes
+            ORDER BY mes ASC
+            LIMIT 12
+        `);
+        res.json(resultado.rows);
+    } catch (erro) {
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao gerar estatísticas mensais.' });
     }
 });
 
