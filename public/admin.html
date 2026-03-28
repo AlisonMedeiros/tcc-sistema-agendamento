@@ -8,6 +8,7 @@
     }
 </script>
 <html lang="pt">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,6 +21,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
+
 <body class="admin-body">
     <header class="admin-header">
         <div class="header-left">
@@ -60,12 +62,17 @@
         <!-- Listagens -->
         <section class="admin-tabelas">
             <div class="tabela-container">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
                     <h2 style="margin-bottom: 0;">Todos os Agendamentos</h2>
                     <div style="display: flex; gap: 8px;">
-                        <input type="date" id="filtroDataAgendamento" style="margin-bottom: 0; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; height: 38px;">
-                        <button onclick="carregarListaFiltro()" style="width: auto; padding: 0 16px; border-radius: 8px; background-color: var(--roxo-principal); color: white; height: 38px; font-size: 14px;">Filtrar</button>
-                        <button onclick="document.getElementById('filtroDataAgendamento').value=''; carregarListaFiltro()" style="width: auto; padding: 0 16px; border-radius: 8px; background-color: #999; color: white; height: 38px; font-size: 14px; box-shadow: none;">Limpar</button>
+                        <input type="date" id="filtroDataAgendamento"
+                            style="margin-bottom: 0; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; height: 38px;">
+                        <button onclick="carregarListaFiltro()"
+                            style="width: auto; padding: 0 16px; border-radius: 8px; background-color: var(--roxo-principal); color: white; height: 38px; font-size: 14px;">Filtrar</button>
+                        <button
+                            onclick="document.getElementById('filtroDataAgendamento').value=''; carregarListaFiltro()"
+                            style="width: auto; padding: 0 16px; border-radius: 8px; background-color: #999; color: white; height: 38px; font-size: 14px; box-shadow: none;">Limpar</button>
                     </div>
                 </div>
                 <div id="statusApi" class="status-api" role="status">Carregando dados...</div>
@@ -85,7 +92,7 @@
                     </table>
                 </div>
             </div>
-            
+
             <div class="tabela-container">
                 <h2>Serviços Disponíveis</h2>
                 <div class="table-responsive">
@@ -137,22 +144,22 @@
                 return div.innerHTML;
             }
 
-            window.carregarListaFiltro = async function() {
+            window.carregarListaFiltro = async function () {
                 try {
                     let dataFiltro = document.getElementById('filtroDataAgendamento').value;
                     let url = apiUrl('/agendamentos?limite=100');
                     if (dataFiltro) url += '&data=' + dataFiltro;
-                    
+
                     var resA = await fetch(url);
                     if (!resA.ok) throw new Error('Falha ao carregar agendamentos');
                     var agendamentos = await resA.json();
-                    
+
                     totalAg.textContent = agendamentos.length;
-                    
+
                     if (agendamentos.length === 0) {
                         tbodyAg.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum agendamento encontrado' + (dataFiltro ? ' nesta data.' : '.') + '</td></tr>';
                     } else {
-                        tbodyAg.innerHTML = agendamentos.map(function(a) {
+                        tbodyAg.innerHTML = agendamentos.map(function (a) {
                             return `<tr>
                                 <td>${formatarData(a.data_hora_inicio)}</td>
                                 <td><strong>${escapeHtml(a.cliente)}</strong><br><small>${escapeHtml(a.cliente_telefone || '')}</small></td>
@@ -169,7 +176,7 @@
                             </tr>`;
                         }).join('');
                     }
-                } catch(e) { console.error(e); }
+                } catch (e) { console.error(e); }
             };
 
             async function desenharGrafico() {
@@ -179,7 +186,7 @@
                     });
                     if (!res.ok) return;
                     var dados = await res.json();
-                    
+
                     var mesesNome = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
                     var fat = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
                     var anoAtual = new Date().getFullYear().toString();
@@ -194,19 +201,35 @@
 
                     var ctx = document.getElementById('graficoMensal').getContext('2d');
                     if (window.meuGrafico) window.meuGrafico.destroy();
-                    
+
                     window.meuGrafico = new Chart(ctx, {
                         type: 'bar',
                         data: {
                             labels: mesesNome,
                             datasets: [
                                 {
-                                    label: 'Faturamento (R$)',
+                                    type: 'line',
+                                    label: 'Curva de Tendência',
                                     data: fat,
-                                    backgroundColor: '#5dc246',
-                                    borderColor: '#27ae60',
-                                    borderWidth: 1,
-                                    borderRadius: 4
+                                    borderColor: '#F79E1B', // Amarelo Destaque
+                                    backgroundColor: '#F79E1B',
+                                    borderWidth: 3,
+                                    fill: false,
+                                    tension: 0.4, // Curva suave
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6,
+                                    order: 0 // Desenha a linha por cima
+                                },
+                                {
+                                    type: 'bar',
+                                    label: 'Faturamento Anual',
+                                    data: fat,
+                                    backgroundColor: '#4E295B',
+                                    borderColor: '#4E295B',
+                                    borderWidth: 0,
+                                    borderRadius: 6,
+                                    hoverBackgroundColor: '#7d4a90',
+                                    order: 1 // Desenha as barras atrás
                                 }
                             ]
                         },
@@ -214,23 +237,37 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
+                                legend: { display: false },
                                 tooltip: {
+                                    backgroundColor: 'rgba(78, 41, 91, 0.95)',
+                                    titleFont: { family: 'Nunito', size: 14 },
+                                    bodyFont: { family: 'Nunito', size: 14 },
+                                    padding: 12,
                                     callbacks: {
-                                        label: function(ctx) {
-                                            return 'Faturamento: ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ctx.raw);
+                                        label: function (ctx) {
+                                            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ctx.raw);
                                         }
                                     }
                                 }
                             },
                             scales: {
-                                y: { 
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { font: { family: 'Nunito', weight: 'bold' }, color: '#4E295B' }
+                                },
+                                y: {
                                     beginAtZero: true,
-                                    title: { display: true, text: 'Reais (R$)' }
+                                    border: { display: false },
+                                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                                    ticks: {
+                                        font: { family: 'Nunito' }, color: '#888',
+                                        callback: function (value) { return 'R$ ' + value; }
+                                    }
                                 }
                             }
                         }
                     });
-                } catch(e) { console.error("Erro no gráfico:", e); }
+                } catch (e) { console.error("Erro no gráfico:", e); }
             }
 
             async function carregarDashboard() {
@@ -242,13 +279,13 @@
                     var resS = await fetch(apiUrl('/servicos'));
                     if (!resS.ok) throw new Error('Falha ao carregar serviços');
                     var servicos = await resS.json();
-                    
+
                     totalSv.textContent = servicos.length;
 
                     if (servicos.length === 0) {
                         tbodySv.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum serviço encontrado.</td></tr>';
                     } else {
-                        tbodySv.innerHTML = servicos.map(function(s) {
+                        tbodySv.innerHTML = servicos.map(function (s) {
                             return `<tr>
                                 <td><strong>${escapeHtml(s.nome)}</strong></td>
                                 <td>${s.duracao_minutos} min</td>
@@ -263,7 +300,7 @@
                     });
                     if (resF.ok) {
                         var fin = await resF.json();
-                        document.getElementById('totalFaturamento').textContent = 
+                        document.getElementById('totalFaturamento').textContent =
                             fin.faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     }
 
@@ -276,24 +313,24 @@
                 }
             }
 
-            window.atualizarStatus = async function(id, novoStatus) {
+            window.atualizarStatus = async function (id, novoStatus) {
                 if (!confirm(`Deseja realmente marcar este agendamento como ${novoStatus}?`)) return;
-                
+
                 setStatus('Aguarde...', 'info');
                 try {
                     var res = await fetch(apiUrl('/agendamentos/' + id + '/status'), {
                         method: 'PUT',
-                        headers: { 
+                        headers: {
                             'Content-Type': 'application/json',
                             'Authorization': 'Bearer ' + localStorage.getItem('gundem_token')
                         },
                         body: JSON.stringify({ status: novoStatus })
                     });
-                    
+
                     if (!res.ok) throw new Error('Falha ao atualizar');
-                    
-                    await carregarDashboard(); 
-                } catch(e) {
+
+                    await carregarDashboard();
+                } catch (e) {
                     console.error(e);
                     setStatus('Erro ao atualizar.', 'erro');
                 }
@@ -303,4 +340,5 @@
         })();
     </script>
 </body>
+
 </html>
