@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS lancamentos_financeiros (
     id_agendamento       INTEGER REFERENCES agendamentos (id_agendamento) ON DELETE SET NULL,
     tipo                 tipo_lancamento NOT NULL,
 
-    categoria            VARCHAR(100) NOT NULL, -- ADICIONADO: Categoria do lançamento (ex: 'Serviço', 'Insumos', 'Despesa Fixa')
+    categoria            VARCHAR(100) NOT NULL DEFAULT 'Serviço', -- Categoria do lançamento (ex: 'Serviço', 'Insumos', 'Despesa Fixa')
 
     descricao            VARCHAR(255) NOT NULL,
     valor                NUMERIC(10, 2) NOT NULL CHECK (valor >= 0),
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS lancamentos_financeiros (
 
 INSERT INTO metodos_pagamento (nome, ativo)
 SELECT v.nome, TRUE
-FROM (VALUES ('Pix'), ('Dinheiro'), ('Cartão')) AS v(nome)
+FROM (VALUES ('Pix'), ('Dinheiro')) AS v(nome)
 WHERE NOT EXISTS (SELECT 1 FROM metodos_pagamento mp WHERE mp.nome = v.nome);
 
 
@@ -112,9 +112,13 @@ INSERT INTO servicos (nome, descricao, duracao_minutos, preco_padrao, ativo)
 SELECT v.nome, v.descricao, v.duracao, v.preco, TRUE
 FROM (
     VALUES
-        ('Corte', 'Corte de cabelo', 45, 80.00),
-        ('Escova', 'Escova modeladora', 60, 120.00),
-        ('Coloração', 'Coloração completa', 120, 250.00)
+        ('Pé',           'Esmaltação nos pés',                     45,  45.00),
+        ('Mão',          'Esmaltação nas mãos',                    30,  35.00),
+        ('Pé e Mão',     'Esmaltação em pés e mãos',              60,  70.00),
+        ('Spa dos Pés',  'Esfoliação, hidratação e esmaltação',   90, 100.00),
+        ('Francesinha',  'Esmaltação francesa',                    45,  50.00),
+        ('Gel',          'Aplicação de gel nas unhas',            120, 150.00),
+        ('Manutenção',   'Manutenção de gel ou acrílico',         60,  80.00)
 ) AS v(nome, descricao, duracao, preco)
 WHERE NOT EXISTS (SELECT 1 FROM servicos s WHERE s.nome = v.nome);
 

@@ -37,11 +37,12 @@
         <!-- Resumo -->
         <section class="admin-cards">
             <div class="admin-card">
-                <h3>Agendamentos Recentes</h3>
+                <h3>📅 Agendamentos de Hoje</h3>
                 <p id="totalAgendamentos" class="card-valor">...</p>
+                <p id="subAgendamentos" style="font-size:0.78rem; color:#888; margin-top:4px;">— / — pendentes</p>
             </div>
             <div class="admin-card">
-                <h3>Serviços Ativos</h3>
+                <h3>👩 Clientes Cadastradas</h3>
                 <p id="totalServicos" class="card-valor">...</p>
             </div>
             <div class="admin-card card-financeiro">
@@ -201,9 +202,8 @@
                     if (!res.ok) return;
                     var dados = await res.json();
 
-                    var mesesNome = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                    var mesesNome = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
                     var fat = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-                    var qtd = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
                     var anoAtual = new Date().getFullYear().toString();
 
                     dados.forEach(d => {
@@ -211,7 +211,6 @@
                         if (partes[0] === anoAtual) {
                             var index = parseInt(partes[1], 10) - 1;
                             fat[index] = parseFloat(d.faturamento);
-                            qtd[index] = parseInt(d.total_agendamentos, 10);
                         }
                     });
 
@@ -219,49 +218,39 @@
                     if (window.meuGrafico) window.meuGrafico.destroy();
 
                     window.meuGrafico = new Chart(ctx, {
+                        type: 'bar',
                         data: {
                             labels: mesesNome,
                             datasets: [
                                 {
                                     type: 'line',
-                                    label: 'Atendimentos (Volume)',
-                                    data: qtd,
+                                    label: 'Curva de Tendência',
+                                    data: fat,
                                     borderColor: '#F79E1B',
+                                    backgroundColor: '#F79E1B',
                                     borderWidth: 3,
-                                    yAxisID: 'yQty',
-                                    tension: 0.3,
-                                    pointRadius: 3
+                                    fill: false,
+                                    tension: 0.4,
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6,
+                                    order: 0
                                 },
                                 {
                                     type: 'bar',
-                                    label: 'Faturamento (R$)',
+                                    label: 'Faturamento Anual',
                                     data: fat,
-                                    backgroundColor: 'rgba(78, 41, 91, 0.8)',
-                                    borderRadius: 5,
-                                    yAxisID: 'yRevenue'
+                                    backgroundColor: '#4E295B',
+                                    borderColor: '#4E295B',
+                                    borderWidth: 0,
+                                    borderRadius: 6,
+                                    hoverBackgroundColor: '#7d4a90',
+                                    order: 1
                                 }
                             ]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            scales: {
-                                yRevenue: {
-                                    type: 'linear',
-                                    position: 'left',
-                                    beginAtZero: true,
-                                    title: { display: true, text: 'Faturamento (R$)', color: '#4E295B', font: { weight: 'bold' } },
-                                    ticks: { color: '#4E295B' }
-                                },
-                                yQty: {
-                                    type: 'linear',
-                                    position: 'right',
-                                    beginAtZero: true,
-                                    grid: { drawOnChartArea: false },
-                                    title: { display: true, text: 'Nº Atendimentos', color: '#F79E1B', font: { weight: 'bold' } },
-                                    ticks: { stepSize: 1, color: '#F79E1B' }
-                                }
-                            },
                             plugins: {
                                 legend: { display: false },
                                 tooltip: {
@@ -297,33 +286,54 @@
             }
 
             async function carregarDashboard() {
+                const token = localStorage.getItem('gundem_token');
+                const authHeader = { 'Authorization': 'Bearer ' + token };
                 try {
-                    // Chama a lista com o filtro
                     await carregarListaFiltro();
 
-                    // Carregar Serviços
-                    var resS = await fetch(apiUrl('/servicos'));
-                    if (!resS.ok) throw new Error('Falha ao carregar serviços');
-                    var servicos = await resS.json();
-
-                    totalSv.textContent = servicos.length;
-
-                    if (servicos.length === 0) {
-                        tbodySv.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum serviço encontrado.</td></tr>';
-                    } else {
-                        tbodySv.innerHTML = servicos.map(function (s) {
-                            return `<tr>
-                                <td><strong>${escapeHtml(s.nome)}</strong></td>
-                                <td>${s.duracao_minutos} min</td>
-                                <td>R$ ${Number(s.preco_padrao).toFixed(2)}</td>
-                            </tr>`;
-                        }).join('');
+                    // Card 1: Agendamentos de Hoje
+                    var resHoje = await fetch(apiUrl('/dashboard/hoje'), { headers: authHeader });
+                    if (resHoje.ok) {
+                        var hoje = await resHoje.json();
+                        totalAg.textContent = hoje.total;
+                        var sub = document.getElementById('subAgendamentos');
+                        if (hoje.total === 0) {
+                            sub.textContent = 'Nenhum agendamento hoje';
+                            sub.style.color = '#aaa';
+                        } else {
+                            sub.innerHTML =
+                                '<span style="color:#27ae60; font-weight:700;">✔ ' + hoje.concluidos + ' concluídos</span>' +
+                                ' &nbsp;·&nbsp; ' +
+                                '<span style="color:#e67e22; font-weight:700;">' + hoje.pendentes + ' pendentes</span>';
+                        }
                     }
 
-                    // Carregar Financeiro
-                    var resF = await fetch(apiUrl('/financeiro/resumo'), {
-                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
-                    });
+                    // Card 2: Clientes Cadastradas
+                    var resCli = await fetch(apiUrl('/dashboard/clientes'), { headers: authHeader });
+                    if (resCli.ok) {
+                        var cli = await resCli.json();
+                        totalSv.textContent = cli.total;
+                    }
+
+                    // Tabela de serviços (mantida)
+                    var resS = await fetch(apiUrl('/servicos'));
+                    if (resS.ok) {
+                        var servicos = await resS.json();
+                        if (servicos.length === 0) {
+                            tbodySv.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum serviço encontrado.</td></tr>';
+                        } else {
+                            tbodySv.innerHTML = servicos.map(function (s) {
+                                return `<tr>
+                                    <td><strong>${escapeHtml(s.nome)}</strong></td>
+                                    <td>${s.duracao_minutos} min</td>
+                                    <td>R$ ${Number(s.preco_padrao).toFixed(2)}</td>
+                                </tr>`;
+                            }).join('');
+                        }
+                    }
+
+                    // Card 3: Faturamento
+                    var resF = await fetch(apiUrl('/financeiro/resumo'), { headers: authHeader });
                     if (resF.ok) {
                         var fin = await resF.json();
                         document.getElementById('totalFaturamento').textContent =
@@ -363,6 +373,57 @@
             };
 
             carregarDashboard();
+
+            // ── Auto-refresh dos cards ───────────────────────────────────
+            // Atualiza os cards a cada 45 segundos automaticamente
+            var autoRefreshInterval = setInterval(function () {
+                atualizarCardsRapido();
+            }, 45000);
+
+            // Atualiza imediatamente quando o admin volta para esta aba
+            document.addEventListener('visibilitychange', function () {
+                if (!document.hidden) {
+                    atualizarCardsRapido();
+                }
+            });
+
+            // Atualiza apenas os cards (sem recarregar a tabela e o gráfico)
+            async function atualizarCardsRapido() {
+                const token = localStorage.getItem('gundem_token');
+                const authHeader = { 'Authorization': 'Bearer ' + token };
+                try {
+                    var resHoje = await fetch(apiUrl('/dashboard/hoje'), { headers: authHeader });
+                    if (resHoje.ok) {
+                        var hoje = await resHoje.json();
+                        totalAg.textContent = hoje.total;
+                        var sub = document.getElementById('subAgendamentos');
+                        if (hoje.total === 0) {
+                            sub.textContent = 'Nenhum agendamento hoje';
+                            sub.style.color = '#aaa';
+                        } else {
+                            sub.innerHTML =
+                                '<span style="color:#27ae60; font-weight:700;">✔ ' + hoje.concluidos + ' concluídos</span>' +
+                                ' &nbsp;·&nbsp; ' +
+                                '<span style="color:#e67e22; font-weight:700;">' + hoje.pendentes + ' pendentes</span>';
+                        }
+                    }
+
+                    var resCli = await fetch(apiUrl('/dashboard/clientes'), { headers: authHeader });
+                    if (resCli.ok) {
+                        var cli = await resCli.json();
+                        totalSv.textContent = cli.total;
+                    }
+
+                    var resF = await fetch(apiUrl('/financeiro/resumo'), { headers: authHeader });
+                    if (resF.ok) {
+                        var fin = await resF.json();
+                        document.getElementById('totalFaturamento').textContent =
+                            fin.faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    }
+                } catch (e) {
+                    console.warn('Auto-refresh falhou silenciosamente:', e);
+                }
+            }
         })();
     </script>
 </body>

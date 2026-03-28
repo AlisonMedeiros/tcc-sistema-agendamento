@@ -10,179 +10,388 @@
     <link rel="apple-touch-icon" href="icon-192.svg">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        .etapa {
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+        .etapa--oculta {
+            display: none;
+        }
+        .etapa--entrando {
+            animation: fadeSlideIn 0.4s ease forwards;
+        }
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .busca-box {
+            background: #fff;
+            border: 1.5px solid #e0d5f5;
+            border-radius: 14px;
+            padding: 28px 24px;
+            text-align: center;
+        }
+        .busca-box .logo-titulo {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #4E295B;
+            margin-bottom: 4px;
+        }
+        .busca-box .logo-sub {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 28px;
+        }
+        .busca-box input[type="email"] {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 10px;
+            border: 1.5px solid #ccc;
+            font-size: 1rem;
+            margin-bottom: 12px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        .busca-box input[type="email"]:focus {
+            border-color: #4E295B;
+            outline: none;
+        }
+        .busca-box .btn-buscar {
+            width: 100%;
+            padding: 13px;
+            background: #4E295B;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background 0.2s;
+        }
+        .busca-box .btn-buscar:hover { background: #6b3a7d; }
+        .busca-box .btn-cadastrar-link {
+            background: none;
+            border: none;
+            color: #4E295B;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 4px;
+        }
+        .msg-erro-busca {
+            color: #c0392b;
+            font-size: 0.85rem;
+            margin-top: 8px;
+            min-height: 20px;
+        }
+
+        /* Formulário de cadastro (inline, não modal) */
+        .form-cadastro-inline {
+            background: #f8f4ff;
+            border: 1.5px solid #e0d5f5;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 16px;
+            text-align: left;
+        }
+        .form-cadastro-inline h4 {
+            color: #4E295B;
+            margin: 0 0 14px;
+            font-size: 1rem;
+        }
+
+        /* Etapa 2 – cabeçalho de boas-vindas */
+        .saudacao {
+            background: linear-gradient(135deg, #4E295B, #7d4a90);
+            color: white;
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .saudacao__nome {
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+        .saudacao__sub {
+            font-size: 0.85rem;
+            opacity: 0.85;
+            margin-top: 3px;
+        }
+        .btn-trocar-cliente {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.5);
+            color: white;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .btn-trocar-cliente:hover { background: rgba(255,255,255,0.35); }
+    </style>
 </head>
 <body>
-    <div class="app-container app-container--wide">
-        <h2>Agendar horário</h2>
-        <p class="subtitulo">Preencha os dados e confirme. A API grava no PostgreSQL.</p>
+    <div class="app-container">
 
-        <div id="statusApi" class="status-api" role="status" aria-live="polite">
-            A carregar serviços e formas de pagamento…
+        <!-- ================================ -->
+        <!-- ETAPA 1: Identificação           -->
+        <!-- ================================ -->
+        <div id="etapa1" class="etapa">
+            <div class="busca-box">
+                <div class="logo-titulo">Gündem</div>
+                <div class="logo-sub">Sistema de Agendamento</div>
+
+                <div id="statusApi" class="status-api" role="status" aria-live="polite" style="display:none;"></div>
+
+                <input type="email" id="buscaEmail" placeholder="Digite seu e-mail para identificar" autocomplete="email">
+                <button class="btn-buscar" onclick="buscarCliente()">Buscar</button>
+
+                <p class="msg-erro-busca" id="msgBusca"></p>
+
+                <p style="color:#aaa; margin: 10px 0 6px; font-size:0.85rem;">Primeira vez aqui?</p>
+                <button class="btn-cadastrar-link" onclick="mostrarFormCadastro()">+ Cadastrar como nova cliente</button>
+
+                <!-- Formulário de cadastro inline (oculto inicialmente) -->
+                <div id="formCadastroInline" class="form-cadastro-inline etapa--oculta">
+                    <h4>Cadastrar nova cliente</h4>
+                    <div id="statusCadastro" class="status-api" style="display:none; margin-bottom:12px;"></div>
+
+                    <label class="field-label">Nome *</label>
+                    <input type="text" id="cad_nome" placeholder="Nome completo">
+
+                    <label class="field-label">Telefone <span class="opcional">(opcional)</span></label>
+                    <input type="tel" id="cad_telefone" placeholder="Ex.: 11999990000">
+
+                    <label class="field-label">E-mail *</label>
+                    <input type="email" id="cad_email" placeholder="email@exemplo.com">
+
+                    <div style="display:flex; gap:8px; margin-top:12px;">
+                        <button onclick="cadastrarCliente()" style="flex:1; background:#4E295B; color:white; border-radius:8px; padding: 10px 0; border:none; cursor:pointer; font-weight:700;">
+                            Salvar e Continuar
+                        </button>
+                        <button onclick="ocultarFormCadastro()" style="background:#bbb; color:white; border-radius:8px; padding:10px 14px; border:none; cursor:pointer;">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <form id="formAgendamento" class="form-agendamento" novalidate>
-            <label class="field-label" for="nome">Nome</label>
-            <input type="text" id="nome" name="nome" required autocomplete="name" placeholder="Nome completo">
+        <!-- ================================ -->
+        <!-- ETAPA 2: Agendamento             -->
+        <!-- ================================ -->
+        <div id="etapa2" class="etapa etapa--oculta">
 
-            <label class="field-label" for="telefone">Telefone</label>
-            <input type="tel" id="telefone" name="telefone" autocomplete="tel" placeholder="Ex.: 11999990000 (recomendado)">
+            <!-- Saudação -->
+            <div class="saudacao">
+                <div>
+                    <div class="saudacao__nome" id="saudacaoNome">Olá!</div>
+                    <div class="saudacao__sub">Escolha o serviço e o horário desejado.</div>
+                </div>
+                <button class="btn-trocar-cliente" onclick="voltarEtapa1()">Trocar cliente</button>
+            </div>
 
-            <label class="field-label" for="email">E-mail <span class="opcional">(opcional)</span></label>
-            <input type="email" id="email" name="email" autocomplete="email" placeholder="email@exemplo.com">
+            <div id="statusAgendamento" class="status-api" role="status" style="display:none;"></div>
 
-            <label class="field-label" for="data_hora_inicio">Data e hora de início</label>
-            <input type="datetime-local" id="data_hora_inicio" name="data_hora_inicio" required>
+            <form id="formAgendamento" class="form-agendamento" novalidate>
+                <label class="field-label" for="data_hora_inicio">Data e hora de início</label>
+                <input type="datetime-local" id="data_hora_inicio" name="data_hora_inicio" required>
 
-            <label class="field-label" for="servico">Serviço</label>
-            <select id="servico" name="servico" required>
-                <option value="" disabled selected>Selecione um serviço…</option>
-            </select>
+                <label class="field-label" for="servico">Serviço</label>
+                <select id="servico" name="servico" required>
+                    <option value="" disabled selected>Selecione um serviço…</option>
+                </select>
 
-            <label class="field-label" for="pagamento">Forma de pagamento <span class="opcional">(opcional)</span></label>
-            <select id="pagamento" name="pagamento">
-                <option value="">Não registrar agora</option>
-            </select>
+                <label class="field-label" for="pagamento">Forma de pagamento <span class="opcional">(opcional)</span></label>
+                <select id="pagamento" name="pagamento">
+                    <option value="">Não registrar agora</option>
+                </select>
 
-            <label class="field-label" for="observacoes">Observações <span class="opcional">(opcional)</span></label>
-            <textarea id="observacoes" name="observacoes" rows="2" placeholder="Preferências, alergias, etc."></textarea>
+                <label class="field-label" for="observacoes">Observações <span class="opcional">(opcional)</span></label>
+                <textarea id="observacoes" name="observacoes" rows="2" placeholder="Preferências, alergias, etc."></textarea>
 
-            <button type="submit" id="btnEnviar">Confirmar agendamento</button>
-        </form>
+                <button type="submit" id="btnEnviar">Confirmar agendamento</button>
+            </form>
+        </div>
 
-        <section class="secao-lista" aria-labelledby="tituloLista">
-            <h3 id="tituloLista">Últimos agendamentos</h3>
-            <div id="listaAgendamentos" class="lista-agendamentos"></div>
-        </section>
     </div>
 
     <script>
         (function () {
-            var API_BASE = window.location.protocol === 'file:'
-                ? 'http://localhost:3000'
-                : '';
+            var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+            function apiUrl(p) { return API_BASE + p; }
 
-            function apiUrl(caminho) {
-                return API_BASE + caminho;
-            }
+            var clienteSelecionada = null; // { id_cliente, nome, telefone, email }
 
-            var statusEl = document.getElementById('statusApi');
-            var form = document.getElementById('formAgendamento');
-            var selectServico = document.getElementById('servico');
-            var selectPagamento = document.getElementById('pagamento');
-            var listaEl = document.getElementById('listaAgendamentos');
-            var btnEnviar = document.getElementById('btnEnviar');
-
-            function setStatus(msg, tipo) {
-                statusEl.textContent = msg;
-                statusEl.className = 'status-api' + (tipo ? ' status-api--' + tipo : '');
-            }
-
-            function formatarData(iso) {
-                if (!iso) return '—';
-                var d = new Date(iso);
-                if (isNaN(d.getTime())) return iso;
-                return d.toLocaleString('pt-BR', {
-                    dateStyle: 'short',
-                    timeStyle: 'short'
+            // ─── Utilitários ───────────────────────────────────────
+            function mostrarEtapa(num) {
+                document.getElementById('etapa1').classList.add('etapa--oculta');
+                document.getElementById('etapa2').classList.add('etapa--oculta');
+                var el = document.getElementById('etapa' + num);
+                el.classList.remove('etapa--oculta');
+                el.classList.add('etapa--entrando');
+                el.addEventListener('animationend', function handler() {
+                    el.classList.remove('etapa--entrando');
+                    el.removeEventListener('animationend', handler);
                 });
             }
 
-            function renderLista(rows) {
-                listaEl.innerHTML = '';
-                if (!rows || !rows.length) {
-                    listaEl.innerHTML = '<p class="lista-vazia">Ainda não há agendamentos registados.</p>';
+            // ─── Etapa 1: Busca ────────────────────────────────────
+            window.buscarCliente = async function () {
+                var email = document.getElementById('buscaEmail').value.trim();
+                var msgEl = document.getElementById('msgBusca');
+                msgEl.textContent = '';
+                if (!email) { msgEl.textContent = 'Por favor, informe seu e-mail.'; return; }
+
+                try {
+                    var res = await fetch(apiUrl('/clientes/buscar?email=' + encodeURIComponent(email)));
+                    if (res.status === 404) {
+                        msgEl.textContent = 'E-mail não encontrado. Cadastre-se como nova cliente abaixo.';
+                        mostrarFormCadastro();
+                        document.getElementById('cad_email').value = email;
+                        return;
+                    }
+                    if (!res.ok) throw new Error('Erro ao buscar.');
+
+                    clienteSelecionada = await res.json();
+                    irParaEtapa2();
+                } catch (e) {
+                    msgEl.textContent = 'Erro ao buscar. Tente novamente.';
+                }
+            };
+
+            document.getElementById('buscaEmail').addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); window.buscarCliente(); }
+            });
+
+            // ─── Form cadastro inline ────────────────────────────────
+            window.mostrarFormCadastro = function () {
+                var f = document.getElementById('formCadastroInline');
+                f.classList.remove('etapa--oculta');
+                f.classList.add('etapa--entrando');
+            };
+
+            window.ocultarFormCadastro = function () {
+                document.getElementById('formCadastroInline').classList.add('etapa--oculta');
+                document.getElementById('statusCadastro').style.display = 'none';
+            };
+
+            window.cadastrarCliente = async function () {
+                var nome = document.getElementById('cad_nome').value.trim();
+                var telefone = document.getElementById('cad_telefone').value.trim();
+                var email = document.getElementById('cad_email').value.trim();
+                var statusEl = document.getElementById('statusCadastro');
+
+                if (!nome || !email) {
+                    statusEl.textContent = 'Nome e e-mail são obrigatórios.';
+                    statusEl.className = 'status-api status-api--erro';
+                    statusEl.style.display = 'block';
                     return;
                 }
-                rows.forEach(function (a) {
-                    var card = document.createElement('div');
-                    card.className = 'item-agenda';
-                    card.innerHTML =
-                        '<div class="item-agenda__texto">' +
-                        '<strong>' + escapeHtml(a.cliente) + '</strong><br>' +
-                        '<small class="item-agenda__meta">' + escapeHtml(a.servico) + '</small><br>' +
-                        '<small class="item-agenda__meta">' + formatarData(a.data_hora_inicio) +
-                        ' · <span class="status-tag">' + escapeHtml(a.status) + '</span></small>' +
-                        '</div>';
-                    listaEl.appendChild(card);
-                });
+
+                try {
+                    var res = await fetch(apiUrl('/clientes'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nome, telefone: telefone || null, email })
+                    });
+                    var body = await res.json();
+                    if (!res.ok) throw new Error(body.erro || 'Erro ao cadastrar.');
+
+                    clienteSelecionada = body.cliente;
+                    irParaEtapa2();
+                } catch (e) {
+                    statusEl.textContent = e.message;
+                    statusEl.className = 'status-api status-api--erro';
+                    statusEl.style.display = 'block';
+                }
+            };
+
+            // ─── Transição para Etapa 2 ──────────────────────────
+            async function irParaEtapa2() {
+                document.getElementById('saudacaoNome').textContent = 'Olá, ' + clienteSelecionada.nome.split(' ')[0] + '!';
+                mostrarEtapa(2);
+
+                // Carregar selects apenas uma vez
+                if (document.getElementById('servico').options.length <= 1) {
+                    await carregarSelects();
+                }
             }
 
-            function escapeHtml(s) {
-                if (s == null) return '';
-                var div = document.createElement('div');
-                div.textContent = s;
-                return div.innerHTML;
-            }
+            window.voltarEtapa1 = function () {
+                clienteSelecionada = null;
+                document.getElementById('buscaEmail').value = '';
+                document.getElementById('msgBusca').textContent = '';
+                ocultarFormCadastro();
+                mostrarEtapa(1);
+            };
 
-            async function carregarSelectsELista() {
-                setStatus('A carregar dados…', 'info');
+            // ─── Etapa 2: Carrega serviços e pagamentos ──────────
+            async function carregarSelects() {
+                var statusEl = document.getElementById('statusAgendamento');
                 try {
                     var resS = await fetch(apiUrl('/servicos'));
-                    if (!resS.ok) throw new Error('Falha ao carregar serviços');
                     var servicos = await resS.json();
-
-                    selectServico.innerHTML = '<option value="" disabled selected>Selecione um serviço…</option>';
+                    var sel = document.getElementById('servico');
+                    sel.innerHTML = '<option value="" disabled selected>Selecione um serviço…</option>';
                     servicos.forEach(function (s) {
                         var opt = document.createElement('option');
                         opt.value = s.id_servico;
                         opt.textContent = s.nome + ' — R$ ' + Number(s.preco_padrao).toFixed(2) + ' (' + s.duracao_minutos + ' min)';
-                        selectServico.appendChild(opt);
+                        sel.appendChild(opt);
                     });
 
                     var resP = await fetch(apiUrl('/pagamentos'));
-                    if (!resP.ok) throw new Error('Falha ao carregar pagamentos');
                     var pagamentos = await resP.json();
-
-                    selectPagamento.innerHTML = '<option value="">Não registrar agora</option>';
+                    var selP = document.getElementById('pagamento');
+                    selP.innerHTML = '<option value="">Não registrar agora</option>';
                     pagamentos.forEach(function (p) {
                         var opt = document.createElement('option');
                         opt.value = p.id_metodo_pagamento;
                         opt.textContent = p.nome;
-                        selectPagamento.appendChild(opt);
+                        selP.appendChild(opt);
                     });
-
-                    var resA = await fetch(apiUrl('/agendamentos?limite=20'));
-                    if (!resA.ok) throw new Error('Falha ao carregar agendamentos');
-                    var agendamentos = await resA.json();
-                    renderLista(agendamentos);
-
-                    setStatus('Ligado à API. Pode agendar.', 'ok');
                 } catch (e) {
-                    console.error(e);
-                    setStatus(
-                        'Não foi possível falar com a API. Inicie o servidor (npm run dev) e abra esta página em http://localhost:3000/index.html',
-                        'erro'
-                    );
+                    statusEl.textContent = 'Erro ao carregar serviços. Verifique o servidor.';
+                    statusEl.className = 'status-api status-api--erro';
+                    statusEl.style.display = 'block';
                 }
             }
 
-            form.addEventListener('submit', async function (ev) {
+            // ─── Envio do agendamento ─────────────────────────────
+            document.getElementById('formAgendamento').addEventListener('submit', async function (ev) {
                 ev.preventDefault();
-                var nome = document.getElementById('nome').value.trim();
-                var telefone = document.getElementById('telefone').value.trim();
-                var email = document.getElementById('email').value.trim();
+                var statusEl = document.getElementById('statusAgendamento');
                 var dataHora = document.getElementById('data_hora_inicio').value;
                 var idServico = document.getElementById('servico').value;
                 var idMetodo = document.getElementById('pagamento').value;
                 var observacoes = document.getElementById('observacoes').value.trim();
 
-                if (!nome || !dataHora || !idServico) {
-                    alert('Preencha nome, data/hora e serviço.');
+                if (!dataHora || !idServico) {
+                    alert('Selecione a data/hora e o serviço.');
                     return;
                 }
 
                 var payload = {
-                    nome_cliente: nome,
-                    telefone: telefone || null,
-                    email: email || null,
+                    nome_cliente: clienteSelecionada.nome,
+                    telefone: clienteSelecionada.telefone || null,
+                    email: clienteSelecionada.email || null,
                     id_servico: Number(idServico),
                     data_hora_inicio: dataHora,
                     id_metodo_pagamento: idMetodo ? Number(idMetodo) : null,
                     observacoes: observacoes || null
                 };
 
+                var btnEnviar = document.getElementById('btnEnviar');
                 btnEnviar.disabled = true;
-                setStatus('A enviar…', 'info');
+                statusEl.textContent = 'Enviando…';
+                statusEl.className = 'status-api';
+                statusEl.style.display = 'block';
+
                 try {
                     var res = await fetch(apiUrl('/agendar'), {
                         method: 'POST',
@@ -190,31 +399,28 @@
                         body: JSON.stringify(payload)
                     });
                     var body = await res.json().catch(function () { return {}; });
-                    if (!res.ok) {
-                        throw new Error(body.erro || 'Erro ao agendar');
-                    }
-                    alert('Agendamento registado com sucesso.');
-                    form.reset();
-                    await carregarSelectsELista();
+                    if (!res.ok) throw new Error(body.erro || 'Erro ao agendar.');
+
+                    statusEl.textContent = '✔ Agendamento confirmado! Até logo, ' + clienteSelecionada.nome.split(' ')[0] + '!';
+                    statusEl.className = 'status-api status-api--ok';
+                    document.getElementById('formAgendamento').reset();
+
+                    setTimeout(function () {
+                        statusEl.style.display = 'none';
+                        voltarEtapa1();
+                    }, 3000);
                 } catch (e) {
-                    console.error(e);
-                    alert(e.message || 'Erro ao agendar.');
-                    setStatus('Erro ao agendar. Verifique a consola e o servidor.', 'erro');
+                    statusEl.textContent = e.message || 'Erro ao agendar.';
+                    statusEl.className = 'status-api status-api--erro';
                 } finally {
                     btnEnviar.disabled = false;
                 }
             });
 
-            carregarSelectsELista();
-
-            // PWA Service Worker Registration
+            // PWA
             if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                    navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                        console.log('Service Worker registrado com sucesso. Scope:', registration.scope);
-                    }).catch(function(err) {
-                        console.log('Falha ao registrar Service Worker:', err);
-                    });
+                window.addEventListener('load', function () {
+                    navigator.serviceWorker.register('/sw.js');
                 });
             }
         })();

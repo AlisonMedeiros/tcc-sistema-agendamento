@@ -33,6 +33,46 @@ app.get('/', (req, res) => {
     });
 });
 
+/**
+ * Dashboard: Agendamentos de Hoje com breakdown por status
+ */
+app.get('/dashboard/hoje', verificarToken, async (req, res) => {
+    try {
+        const resultado = await db.query(`
+            SELECT
+                COUNT(*) AS total,
+                COUNT(*) FILTER (WHERE status = 'concluido') AS concluidos,
+                COUNT(*) FILTER (WHERE status IN ('marcado', 'confirmado')) AS pendentes,
+                COUNT(*) FILTER (WHERE status = 'cancelado') AS cancelados
+            FROM agendamentos
+            WHERE CAST(data_hora_inicio AS DATE) = CURRENT_DATE
+        `);
+        const row = resultado.rows[0];
+        res.json({
+            total: parseInt(row.total, 10),
+            concluidos: parseInt(row.concluidos, 10),
+            pendentes: parseInt(row.pendentes, 10),
+            cancelados: parseInt(row.cancelados, 10)
+        });
+    } catch (erro) {
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao buscar agendamentos de hoje.' });
+    }
+});
+
+/**
+ * Dashboard: Total de clientes cadastrados
+ */
+app.get('/dashboard/clientes', verificarToken, async (req, res) => {
+    try {
+        const resultado = await db.query('SELECT COUNT(*) AS total FROM clientes');
+        res.json({ total: parseInt(resultado.rows[0].total, 10) });
+    } catch (erro) {
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao contar clientes.' });
+    }
+});
+
 /** Lista serviços ativos */
 app.get('/servicos', async (req, res) => {
     try {
@@ -58,6 +98,48 @@ app.get('/clientes', async (req, res) => {
     } catch (erro) {
         console.error(erro);
         res.status(500).json({ erro: 'Erro ao buscar clientes no banco de dados.' });
+    }
+});
+
+/** Busca cliente pelo e-mail para preenchimento automático */
+app.get('/clientes/buscar', async (req, res) => {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ erro: 'Informe o e-mail.' });
+    try {
+        const resultado = await db.query(
+            'SELECT id_cliente, nome, telefone, email FROM clientes WHERE email = $1 LIMIT 1',
+            [String(email).trim().toLowerCase()]
+        );
+        if (resultado.rows.length === 0) {
+            return res.status(404).json({ erro: 'Cliente não encontrada.' });
+        }
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao buscar cliente.' });
+    }
+});
+
+/** Cadastra um novo cliente pré-registrado (sem agendamento) */
+app.post('/clientes', async (req, res) => {
+    const { nome, telefone, email } = req.body;
+    if (!nome || !nome.trim()) return res.status(400).json({ erro: 'Nome é obrigatório.' });
+    try {
+        // Verifica se telefone já existe
+        if (telefone) {
+            const existente = await db.query('SELECT id_cliente FROM clientes WHERE telefone = $1', [telefone.trim()]);
+            if (existente.rows.length > 0) {
+                return res.status(409).json({ erro: 'Já existe uma cliente cadastrada com este telefone.' });
+            }
+        }
+        const resultado = await db.query(
+            'INSERT INTO clientes (nome, telefone, email) VALUES ($1, $2, $3) RETURNING id_cliente, nome, telefone, email',
+            [nome.trim(), telefone ? telefone.trim() : null, email ? email.trim() : null]
+        );
+        res.status(201).json({ mensagem: 'Cliente cadastrada com sucesso!', cliente: resultado.rows[0] });
+    } catch (erro) {
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao cadastrar cliente.' });
     }
 });
 
@@ -147,14 +229,13 @@ app.get('/meus-agendamentos', verificarToken, async (req, res) => {
     try {
         const idUsuario = req.usuario.id;
 
-        // Primeiro buscamos o ID do cliente vinculado a este usuário
         const clienteRes = await db.query(
             'SELECT id_cliente FROM clientes WHERE id_usuario = $1',
             [idUsuario]
         );
 
         if (clienteRes.rows.length === 0) {
-            return res.json([]); // Nenhum cliente vinculado, logo nenhum agendamento
+            return res.json([]);
         }
 
         const idCliente = clienteRes.rows[0].id_cliente;
@@ -181,8 +262,7 @@ app.get('/meus-agendamentos', verificarToken, async (req, res) => {
 });
 
 /**
- * Cria cliente (se necessário), agendamento com início/fim conforme duração do serviço
- * e, opcionalmente, lançamento financeiro de entrada (MER).
+ * Cria agendamento
  */
 app.post('/agendar', async (req, res) => {
     const {
@@ -195,59 +275,34 @@ app.post('/agendar', async (req, res) => {
         observacoes,
     } = req.body;
 
-    if (!nome_cliente || !String(nome_cliente).trim()) {
-        return res.status(400).json({ erro: 'Informe o nome do cliente.' });
-    }
-    if (!id_servico) {
-        return res.status(400).json({ erro: 'Selecione um serviço.' });
-    }
-    if (!data_hora_inicio) {
-        return res.status(400).json({ erro: 'Informe data e hora de início.' });
+    if (!nome_cliente || !String(nome_cliente).trim() || !id_servico || !data_hora_inicio) {
+        return res.status(400).json({ erro: 'Campos obrigatórios ausentes.' });
     }
 
     const inicio = new Date(data_hora_inicio);
-    if (Number.isNaN(inicio.getTime())) {
-        return res.status(400).json({ erro: 'Data/hora de início inválida.' });
-    }
-
     const client = await db.connect();
     try {
         await client.query('BEGIN');
 
-        const tel = telefone && String(telefone).trim() ? String(telefone).trim() : null;
-        const mail = email && String(email).trim() ? String(email).trim() : null;
+        const tel = telefone ? String(telefone).trim() : null;
+        const mail = email ? String(email).trim() : null;
         const nome = String(nome_cliente).trim();
 
         let id_cliente;
         if (tel) {
-            const existente = await client.query(
-                'SELECT id_cliente FROM clientes WHERE telefone = $1 LIMIT 1',
-                [tel]
-            );
+            const existente = await client.query('SELECT id_cliente FROM clientes WHERE telefone = $1 LIMIT 1', [tel]);
             if (existente.rows.length) {
                 id_cliente = existente.rows[0].id_cliente;
-                await client.query(
-                    `UPDATE clientes SET nome = $1, email = COALESCE($2, email), atualizado_em = NOW()
-                     WHERE id_cliente = $3`,
-                    [nome, mail, id_cliente]
-                );
+                await client.query('UPDATE clientes SET nome = $1, email = COALESCE($2, email) WHERE id_cliente = $3', [nome, mail, id_cliente]);
             }
         }
 
         if (id_cliente === undefined) {
-            const ins = await client.query(
-                `INSERT INTO clientes (nome, telefone, email)
-                 VALUES ($1, $2, $3)
-                 RETURNING id_cliente`,
-                [nome, tel, mail]
-            );
+            const ins = await client.query('INSERT INTO clientes (nome, telefone, email) VALUES ($1, $2, $3) RETURNING id_cliente', [nome, tel, mail]);
             id_cliente = ins.rows[0].id_cliente;
         }
 
-        const srv = await client.query(
-            'SELECT duracao_minutos, preco_padrao FROM servicos WHERE id_servico = $1 AND ativo = TRUE',
-            [id_servico]
-        );
+        const srv = await client.query('SELECT duracao_minutos, preco_padrao FROM servicos WHERE id_servico = $1 AND ativo = TRUE', [id_servico]);
         if (!srv.rows.length) {
             await client.query('ROLLBACK');
             return res.status(400).json({ erro: 'Serviço inválido ou inativo.' });
@@ -257,234 +312,135 @@ app.post('/agendar', async (req, res) => {
         const preco = srv.rows[0].preco_padrao;
         const fim = new Date(inicio.getTime() + duracaoMin * 60 * 1000);
 
-        // 1. Validação de Horário Comercial (08:00 às 18:00)
-        const horaInicio = inicio.getHours();
-        const horaFim = fim.getHours();
-        const minFim = fim.getMinutes();
-        
-        if (horaInicio < 8 || horaFim > 18 || (horaFim === 18 && minFim > 0)) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ erro: 'O horário de atendimento do estúdio é das 08:00 às 18:00.' });
-        }
-
-        // 2. Validação de Choque de Horários
         const conflito = await client.query(
             `SELECT id_agendamento FROM agendamentos 
-             WHERE status != 'cancelado'
-             AND (data_hora_inicio < $2 AND data_hora_fim > $1)`,
+             WHERE status != 'cancelado' AND (data_hora_inicio < $2 AND data_hora_fim > $1)`,
             [inicio.toISOString(), fim.toISOString()]
         );
 
         if (conflito.rows.length > 0) {
             await client.query('ROLLBACK');
-            return res.status(400).json({ erro: 'Desculpe, este horário já está ocupado por outro atendimento.' });
+            return res.status(400).json({ erro: 'Horário já ocupado.' });
         }
 
         const ag = await client.query(
-            `INSERT INTO agendamentos (
-                id_cliente, id_servico, data_hora_inicio, data_hora_fim, status, observacoes
-            ) VALUES ($1, $2, $3, $4, 'marcado', $5)
-            RETURNING *`,
+            `INSERT INTO agendamentos (id_cliente, id_servico, data_hora_inicio, data_hora_fim, status, observacoes) 
+             VALUES ($1, $2, $3, $4, 'marcado', $5) RETURNING *`,
             [id_cliente, id_servico, inicio.toISOString(), fim.toISOString(), observacoes || null]
         );
 
-        const rowAg = ag.rows[0];
-
         if (id_metodo_pagamento) {
             await client.query(
-                `INSERT INTO lancamentos_financeiros (
-                    id_agendamento, tipo, descricao, valor, data_lancamento, id_metodo_pagamento
-                ) VALUES ($1, 'entrada', $2, $3, CURRENT_DATE, $4)`,
-                [
-                    rowAg.id_agendamento,
-                    `Pré-registro – agendamento #${rowAg.id_agendamento}`,
-                    preco,
-                    id_metodo_pagamento,
-                ]
+                `INSERT INTO lancamentos_financeiros (id_agendamento, tipo, descricao, valor, categoria, id_metodo_pagamento) 
+                 VALUES ($1, 'entrada', $2, $3, 'Serviço', $4)`,
+                [ag.rows[0].id_agendamento, `Agendamento #${ag.rows[0].id_agendamento}`, preco, id_metodo_pagamento]
             );
         }
 
         await client.query('COMMIT');
-        res.status(201).json({
-            mensagem: 'Agendamento realizado com sucesso.',
-            agendamento: rowAg,
-        });
+        res.status(201).json({ mensagem: 'Agendamento realizado.', agendamento: ag.rows[0] });
     } catch (erro) {
-        try {
-            await client.query('ROLLBACK');
-        } catch (rb) {
-            console.error(rb);
-        }
-        console.error('Erro no servidor:', erro);
-        res.status(500).json({ erro: 'Erro ao salvar agendamento. Verifique o banco e o esquema (docs/schema.sql).' });
+        await client.query('ROLLBACK');
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao agendar.' });
     } finally {
         client.release();
     }
 });
 
-/** Atualizar status do agendamento (Ex: pelo painel admin) */
 app.put('/agendamentos/:id/status', verificarToken, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
-    
-    if (!['marcado', 'confirmado', 'concluido', 'cancelado'].includes(status)) {
-        return res.status(400).json({ erro: 'Status inválido.' });
-    }
-
+    const client = await db.connect();
     try {
-        const resultado = await db.query(
-            `UPDATE agendamentos 
-             SET status = $1, atualizado_em = NOW() 
-             WHERE id_agendamento = $2 
-             RETURNING id_agendamento, status`,
+        await client.query('BEGIN');
+
+        const resultado = await client.query(
+            'UPDATE agendamentos SET status = $1, atualizado_em = NOW() WHERE id_agendamento = $2 RETURNING *',
             [status, id]
         );
 
-        if (resultado.rows.length === 0) {
-            return res.status(404).json({ erro: 'Agendamento não encontrado.' });
+        // Se cancelado, remove o lançamento financeiro vinculado
+        if (status === 'cancelado') {
+            await client.query(
+                'DELETE FROM lancamentos_financeiros WHERE id_agendamento = $1',
+                [id]
+            );
         }
 
-        res.json({ mensagem: 'Status atualizado com sucesso.', agendamento: resultado.rows[0] });
+        await client.query('COMMIT');
+        res.json(resultado.rows[0]);
     } catch (erro) {
+        await client.query('ROLLBACK');
         console.error(erro);
-        res.status(500).json({ erro: 'Erro ao atualizar o status do agendamento.' });
+        res.status(500).json({ erro: 'Erro ao atualizar status.' });
+    } finally {
+        client.release();
     }
 });
-/**
- * Resumo Financeiro
- * Retorna a soma de faturamentos entrantes.
- */
+
 app.get('/financeiro/resumo', verificarToken, async (req, res) => {
     try {
-        const resultado = await db.query(`SELECT COALESCE(SUM(valor), 0) AS total_faturamento FROM lancamentos_financeiros WHERE tipo = 'entrada'`);
+        const resultado = await db.query(`
+            SELECT COALESCE(SUM(l.valor), 0) AS total_faturamento
+            FROM lancamentos_financeiros l
+            INNER JOIN agendamentos a ON a.id_agendamento = l.id_agendamento
+            WHERE l.tipo = 'entrada'
+              AND a.status != 'cancelado'
+        `);
         res.json({ faturamento: Number(resultado.rows[0].total_faturamento) });
     } catch (erro) {
-        console.error(erro);
         res.status(500).json({ erro: 'Erro ao extrair faturamento.' });
     }
 });
 
-/**
- * Rota de Autenticação (Login JWT)
- */
 app.post('/login', async (req, res) => {
     const { email, senha } = req.body;
-
-    if (!email || !senha) {
-        return res.status(400).json({ erro: 'E-mail e senha são obrigatórios.' });
-    }
-
     try {
-        const resultado = await db.query(
-            'SELECT id_usuario, nome, email, senha_hash, tipo FROM usuarios WHERE email = $1',
-            [email.toLowerCase().trim()]
-        );
-
+        const resultado = await db.query('SELECT * FROM usuarios WHERE email = $1', [email.toLowerCase().trim()]);
         const usuario = resultado.rows[0];
-
-        if (!usuario) {
-            return res.status(401).json({ erro: 'E-mail ou senha incorretos.' });
-        }
+        if (!usuario) return res.status(401).json({ erro: 'Credenciais inválidas.' });
 
         const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
-        // Fallback pra facilitar no TCC: Se a senha não começar com $, verifica sem criptografia. 
-        // (Isso é apenas para garantir que a inserção manual provisória sem hash no banco funcione).
-        let logou = false;
-        if (usuario.senha_hash.startsWith('$2b$')) {
-            logou = senhaValida;
-        } else if (usuario.senha_hash === senha) {
-            logou = true; 
-        }
+        if (!senhaValida && usuario.senha_hash !== senha) return res.status(401).json({ erro: 'Credenciais inválidas.' });
 
-        if (!logou) {
-            return res.status(401).json({ erro: 'E-mail ou senha incorretos.' });
-        }
-
-        const token = jwt.sign(
-            { id: usuario.id_usuario, tipo: usuario.tipo },
-            SECRET_KEY,
-            { expiresIn: '8h' }
-        );
-
-        res.json({
-            mensagem: 'Login bem-sucedido!',
-            usuario: { id: usuario.id_usuario, nome: usuario.nome, tipo: usuario.tipo },
-            token
-        });
-
+        const token = jwt.sign({ id: usuario.id_usuario, tipo: usuario.tipo }, SECRET_KEY, { expiresIn: '8h' });
+        res.json({ usuario: { id: usuario.id_usuario, nome: usuario.nome, tipo: usuario.tipo }, token });
     } catch (erro) {
-        console.error('Erro no processamento do login:', erro);
-        res.status(500).json({ erro: 'Erro interno no servidor ao tentar logar.' });
+        res.status(500).json({ erro: 'Erro no login.' });
     }
 });
 
-        res.status(500).json({ erro: 'Erro interno no servidor ao tentar logar.' });
-    }
-});
-
-/**
- * Cadastrar novo serviço (Admin)
- */
 app.post('/servicos', verificarToken, async (req, res) => {
     if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
-
     const { nome, descricao, duracao_minutos, preco_padrao } = req.body;
-    if (!nome || !duracao_minutos || !preco_padrao) {
-        return res.status(400).json({ erro: 'Nome, duração e preço são obrigatórios.' });
-    }
-
     try {
-        const resultado = await db.query(
-            `INSERT INTO servicos (nome, descricao, duracao_minutos, preco_padrao)
-             VALUES ($1, $2, $3, $4)
-             RETURNING *`,
-            [nome, descricao, duracao_minutos, preco_padrao]
-        );
+        const resultado = await db.query('INSERT INTO servicos (nome, descricao, duracao_minutos, preco_padrao) VALUES ($1, $2, $3, $4) RETURNING *', [nome, descricao, duracao_minutos, preco_padrao]);
         res.status(201).json(resultado.rows[0]);
     } catch (erro) {
-        console.error(erro);
-        res.status(500).json({ erro: 'Erro ao cadastrar serviço.' });
+        res.status(500).json({ erro: 'Erro ao criar serviço.' });
     }
 });
 
-/**
- * Atualizar serviço existente (Admin)
- */
 app.put('/servicos/:id', verificarToken, async (req, res) => {
     if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
-
     const { id } = req.params;
     const { nome, descricao, duracao_minutos, preco_padrao, ativo } = req.body;
-
     try {
         const resultado = await db.query(
-            `UPDATE servicos 
-             SET nome = COALESCE($1, nome), 
-                 descricao = COALESCE($2, descricao), 
-                 duracao_minutos = COALESCE($3, duracao_minutos), 
-                 preco_padrao = COALESCE($4, preco_padrao),
-                 ativo = COALESCE($5, ativo),
-                 atualizado_em = NOW()
-             WHERE id_servico = $6
-             RETURNING *`,
+            `UPDATE servicos SET nome = $1, descricao = $2, duracao_minutos = $3, preco_padrao = $4, ativo = $5, atualizado_em = NOW() WHERE id_servico = $6 RETURNING *`,
             [nome, descricao, duracao_minutos, preco_padrao, ativo, id]
         );
-
-        if (resultado.rows.length === 0) return res.status(404).json({ erro: 'Serviço não encontrado.' });
         res.json(resultado.rows[0]);
     } catch (erro) {
-        console.error(erro);
         res.status(500).json({ erro: 'Erro ao atualizar serviço.' });
     }
 });
 
-// Servir arquivos do frontend
 const pastaPublica = path.resolve(__dirname, '../public');
-console.log('Servindo arquivos estáticos da pasta:', pastaPublica);
 app.use(express.static(pastaPublica));
 
-
-
-app.listen(porta, () => {
-    console.log(`Servidor em http://localhost:${porta}`);
+const HOST = '0.0.0.0';
+app.listen(porta, HOST, () => {
+    console.log(`Servidor rodando em http://${HOST}:${porta}`);
 });
