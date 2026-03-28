@@ -141,6 +141,46 @@ app.get('/estatisticas/mensal', verificarToken, async (req, res) => {
 });
 
 /**
+ * Agendamentos do Cliente Logado
+ */
+app.get('/meus-agendamentos', verificarToken, async (req, res) => {
+    try {
+        const idUsuario = req.usuario.id;
+
+        // Primeiro buscamos o ID do cliente vinculado a este usuário
+        const clienteRes = await db.query(
+            'SELECT id_cliente FROM clientes WHERE id_usuario = $1',
+            [idUsuario]
+        );
+
+        if (clienteRes.rows.length === 0) {
+            return res.json([]); // Nenhum cliente vinculado, logo nenhum agendamento
+        }
+
+        const idCliente = clienteRes.rows[0].id_cliente;
+
+        const resultado = await db.query(`
+            SELECT 
+                a.id_agendamento,
+                s.nome AS servico,
+                a.data_hora_inicio,
+                a.data_hora_fim,
+                a.status::text AS status,
+                a.observacoes
+            FROM agendamentos a
+            INNER JOIN servicos s ON s.id_servico = a.id_servico
+            WHERE a.id_cliente = $1
+            ORDER BY a.data_hora_inicio DESC
+        `, [idCliente]);
+
+        res.json(resultado.rows);
+    } catch (erro) {
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao buscar seus agendamentos.' });
+    }
+});
+
+/**
  * Cria cliente (se necessário), agendamento com início/fim conforme duração do serviço
  * e, opcionalmente, lançamento financeiro de entrada (MER).
  */
@@ -375,6 +415,66 @@ app.post('/login', async (req, res) => {
     } catch (erro) {
         console.error('Erro no processamento do login:', erro);
         res.status(500).json({ erro: 'Erro interno no servidor ao tentar logar.' });
+    }
+});
+
+        res.status(500).json({ erro: 'Erro interno no servidor ao tentar logar.' });
+    }
+});
+
+/**
+ * Cadastrar novo serviço (Admin)
+ */
+app.post('/servicos', verificarToken, async (req, res) => {
+    if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
+
+    const { nome, descricao, duracao_minutos, preco_padrao } = req.body;
+    if (!nome || !duracao_minutos || !preco_padrao) {
+        return res.status(400).json({ erro: 'Nome, duração e preço são obrigatórios.' });
+    }
+
+    try {
+        const resultado = await db.query(
+            `INSERT INTO servicos (nome, descricao, duracao_minutos, preco_padrao)
+             VALUES ($1, $2, $3, $4)
+             RETURNING *`,
+            [nome, descricao, duracao_minutos, preco_padrao]
+        );
+        res.status(201).json(resultado.rows[0]);
+    } catch (erro) {
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao cadastrar serviço.' });
+    }
+});
+
+/**
+ * Atualizar serviço existente (Admin)
+ */
+app.put('/servicos/:id', verificarToken, async (req, res) => {
+    if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
+
+    const { id } = req.params;
+    const { nome, descricao, duracao_minutos, preco_padrao, ativo } = req.body;
+
+    try {
+        const resultado = await db.query(
+            `UPDATE servicos 
+             SET nome = COALESCE($1, nome), 
+                 descricao = COALESCE($2, descricao), 
+                 duracao_minutos = COALESCE($3, duracao_minutos), 
+                 preco_padrao = COALESCE($4, preco_padrao),
+                 ativo = COALESCE($5, ativo),
+                 atualizado_em = NOW()
+             WHERE id_servico = $6
+             RETURNING *`,
+            [nome, descricao, duracao_minutos, preco_padrao, ativo, id]
+        );
+
+        if (resultado.rows.length === 0) return res.status(404).json({ erro: 'Serviço não encontrado.' });
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao atualizar serviço.' });
     }
 });
 

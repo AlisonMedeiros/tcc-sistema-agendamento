@@ -1,74 +1,96 @@
 <!DOCTYPE html>
 <html lang="pt">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minha Área – Gündem</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="icon-192.svg">
 </head>
-<body class="admin-body"> <header class="admin-header">
+
+<body class="admin-body">
+    <header class="admin-header">
         <div class="header-left">
-            <h1>Olá, <span id="nomeCliente">...</span></h1>
+            <h1>Gündem <span class="badge" style="background: var(--amarelo-secundario);">Cliente</span></h1>
         </div>
         <nav>
-            <a href="index.html" class="btn-voltar">Novo Agendamento</a>
-            <button onclick="logout()" class="btn-remover" style="margin-left: 10px;">Sair</button>
+            <a href="index.html" class="btn-voltar">← Novo Agendamento</a>
+            <button onclick="logout()" class="btn-cancelar" style="width: auto; padding: 0 16px; margin-left: 10px;">Sair</button>
         </nav>
     </header>
 
     <main class="admin-main">
-        <section class="tabela-container">
-            <h2>Meus Agendamentos Próximos</h2>
-            <div id="statusLista" class="status-api">A carregar os seus horários...</div>
-            
-            <div id="meusHorarios" class="lista-agendamentos">
+        <section class="admin-cards">
+            <div class="admin-card">
+                <h3>Olá, <span id="nomeUsuario">...</span></h3>
+                <p>Seja bem-vindo(a) à sua área exclusiva.</p>
+            </div>
+        </section>
+
+        <section class="admin-tabelas">
+            <div class="tabela-container">
+                <h2>Meus Agendamentos</h2>
+                <div id="statusApi" class="status-api" role="status">Carregando seus dados...</div>
+                
+                <div class="table-responsive">
+                    <table class="table-admin" id="tableMeusAgendamentos">
+                        <thead>
+                            <tr>
+                                <th>Data e Hora</th>
+                                <th>Serviço</th>
+                                <th>Status</th>
+                                <th>Observações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyMeusAgendamentos">
+                            <!-- preenchido via JS -->
+                        </tbody>
+                    </table>
                 </div>
+            </div>
         </section>
     </main>
 
     <script>
         (function () {
-            // Segurança: Se não for cliente, volta para o login
-            const tipo = localStorage.getItem('gudem_user_tipo');
-            if (tipo !== 'cliente') {
+            const token = localStorage.getItem('gundem_token');
+            const tipo = localStorage.getItem('gundem_user_tipo');
+            const nome = localStorage.getItem('gundem_user_nome');
+
+            if (!token || tipo !== 'cliente') {
                 window.location.href = 'login.html';
                 return;
             }
 
-            document.getElementById('nomeCliente').textContent = localStorage.getItem('gudem_user_nome');
+            document.getElementById('nomeUsuario').textContent = nome;
 
-            const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
-            const listaEl = document.getElementById('meusHorarios');
-            const statusEl = document.getElementById('statusLista');
+            var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+            function apiUrl(caminho) { return API_BASE + caminho; }
 
-            async function carregarMeusAgendamentos() {
-                try {
-                    const meuId = localStorage.getItem('gudem_user_id');
-                    
-                    // Chamamos a API passando o nosso ID na URL!
-                    const res = await fetch(API_BASE + '/agendamentos?usuario_id=' + meuId);
-                    
-                    if (!res.ok) throw new Error('Falha na API');
-                    const agendamentos = await res.json();
+            var statusEl = document.getElementById('statusApi');
+            var tbody = document.getElementById('tbodyMeusAgendamentos');
 
-                    if (agendamentos.length === 0) {
-                        listaEl.innerHTML = '<p class="lista-vazia">Ainda não tem horários marcados.</p>';
-                    } else {
-                        listaEl.innerHTML = agendamentos.map(a => `
-                            <div class="item-agenda">
-                                <div>
-                                    <strong>${a.servico}</strong><br>
-                                    <small>📅 ${new Date(a.data_hora_inicio).toLocaleString('pt-BR')}</small><br>
-                                    <span class="status-tag">${a.status}</span>
-                                </div>
-                            </div>
-                        `).join('');
-                    }
-                    statusEl.style.display = 'none';
-                } catch (e) {
-                    statusEl.textContent = "Erro ao carregar agendamentos.";
-                    statusEl.className = "status-api status-api--erro";
-                }
+            function setStatus(msg, tipo) {
+                statusEl.textContent = msg;
+                statusEl.className = 'status-api' + (tipo ? ' status-api--' + tipo : '');
+                statusEl.style.display = 'block';
+            }
+
+            function formatarData(iso) {
+                if (!iso) return '—';
+                var d = new Date(iso);
+                if (isNaN(d.getTime())) return iso;
+                return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+            }
+
+            function escapeHtml(s) {
+                if (s == null) return '';
+                var div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
             }
 
             window.logout = function() {
@@ -76,8 +98,44 @@
                 window.location.href = 'login.html';
             };
 
-            carregarMeusAgendamentos();
+            async function carregarMeusDados() {
+                try {
+                    const res = await fetch(apiUrl('/meus-agendamentos'), {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            logout();
+                            return;
+                        }
+                        throw new Error('Falha ao carregar agendamentos');
+                    }
+
+                    const agendamentos = await res.json();
+
+                    if (agendamentos.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" class="text-center">Você ainda não possui agendamentos.</td></tr>';
+                    } else {
+                        tbody.innerHTML = agendamentos.map(function (a) {
+                            return `<tr>
+                                <td>${formatarData(a.data_hora_inicio)}</td>
+                                <td><strong>${escapeHtml(a.servico)}</strong></td>
+                                <td><span class="status-tag">${escapeHtml(a.status)}</span></td>
+                                <td><small>${escapeHtml(a.observacoes || '—')}</small></td>
+                            </tr>`;
+                        }).join('');
+                    }
+                    statusEl.style.display = 'none';
+                } catch (e) {
+                    console.error(e);
+                    setStatus('Erro ao carregar seus agendamentos.', 'erro');
+                }
+            }
+
+            carregarMeusDados();
         })();
     </script>
 </body>
+
 </html>
