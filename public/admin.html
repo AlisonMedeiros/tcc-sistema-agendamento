@@ -28,6 +28,7 @@
             <h1>Güdem <span class="badge">Admin</span></h1>
         </div>
         <nav>
+            <a href="configuracoes.html" class="btn-voltar" style="background: var(--roxo-principal); color: white; margin-right: 10px;">⚙ Configurações</a>
             <a href="index.html" class="btn-voltar">← Voltar ao App</a>
         </nav>
     </header>
@@ -68,10 +69,17 @@
                     <div style="display: flex; gap: 8px;">
                         <input type="date" id="filtroDataAgendamento"
                             style="margin-bottom: 0; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; height: 38px;">
+                        <select id="filtroStatusAgendamento" style="height: 38px; border-radius: 8px; border: 1px solid #ccc; padding: 0 10px;">
+                            <option value="">Todos Status</option>
+                            <option value="marcado">Marcado</option>
+                            <option value="confirmado">Confirmado</option>
+                            <option value="concluido">Concluido</option>
+                            <option value="cancelado">Cancelado</option>
+                        </select>
                         <button onclick="carregarListaFiltro()"
                             style="width: auto; padding: 0 16px; border-radius: 8px; background-color: var(--roxo-principal); color: white; height: 38px; font-size: 14px;">Filtrar</button>
                         <button
-                            onclick="document.getElementById('filtroDataAgendamento').value=''; carregarListaFiltro()"
+                            onclick="document.getElementById('filtroDataAgendamento').value=''; document.getElementById('filtroStatusAgendamento').value=''; carregarListaFiltro()"
                             style="width: auto; padding: 0 16px; border-radius: 8px; background-color: #999; color: white; height: 38px; font-size: 14px; box-shadow: none;">Limpar</button>
                     </div>
                 </div>
@@ -147,12 +155,18 @@
             window.carregarListaFiltro = async function () {
                 try {
                     let dataFiltro = document.getElementById('filtroDataAgendamento').value;
+                    let statusFiltro = document.getElementById('filtroStatusAgendamento').value;
                     let url = apiUrl('/agendamentos?limite=100');
                     if (dataFiltro) url += '&data=' + dataFiltro;
 
                     var resA = await fetch(url);
                     if (!resA.ok) throw new Error('Falha ao carregar agendamentos');
                     var agendamentos = await resA.json();
+
+                    // Filtro de Status no Frontend (Simple and fast)
+                    if (statusFiltro) {
+                        agendamentos = agendamentos.filter(a => a.status === statusFiltro);
+                    }
 
                     totalAg.textContent = agendamentos.length;
 
@@ -187,8 +201,9 @@
                     if (!res.ok) return;
                     var dados = await res.json();
 
-                    var mesesNome = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                    var mesesNome = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
                     var fat = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    var qtd = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
                     var anoAtual = new Date().getFullYear().toString();
 
                     dados.forEach(d => {
@@ -196,6 +211,7 @@
                         if (partes[0] === anoAtual) {
                             var index = parseInt(partes[1], 10) - 1;
                             fat[index] = parseFloat(d.faturamento);
+                            qtd[index] = parseInt(d.total_agendamentos, 10);
                         }
                     });
 
@@ -203,39 +219,49 @@
                     if (window.meuGrafico) window.meuGrafico.destroy();
 
                     window.meuGrafico = new Chart(ctx, {
-                        type: 'bar',
                         data: {
                             labels: mesesNome,
                             datasets: [
                                 {
                                     type: 'line',
-                                    label: 'Curva de Tendência',
-                                    data: fat,
-                                    borderColor: '#F79E1B', // Amarelo Destaque
-                                    backgroundColor: '#F79E1B',
+                                    label: 'Atendimentos (Volume)',
+                                    data: qtd,
+                                    borderColor: '#F79E1B',
                                     borderWidth: 3,
-                                    fill: false,
-                                    tension: 0.4, // Curva suave
-                                    pointRadius: 4,
-                                    pointHoverRadius: 6,
-                                    order: 0 // Desenha a linha por cima
+                                    yAxisID: 'yQty',
+                                    tension: 0.3,
+                                    pointRadius: 3
                                 },
                                 {
                                     type: 'bar',
-                                    label: 'Faturamento Anual',
+                                    label: 'Faturamento (R$)',
                                     data: fat,
-                                    backgroundColor: '#4E295B',
-                                    borderColor: '#4E295B',
-                                    borderWidth: 0,
-                                    borderRadius: 6,
-                                    hoverBackgroundColor: '#7d4a90',
-                                    order: 1 // Desenha as barras atrás
+                                    backgroundColor: 'rgba(78, 41, 91, 0.8)',
+                                    borderRadius: 5,
+                                    yAxisID: 'yRevenue'
                                 }
                             ]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
+                            scales: {
+                                yRevenue: {
+                                    type: 'linear',
+                                    position: 'left',
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Faturamento (R$)', color: '#4E295B', font: { weight: 'bold' } },
+                                    ticks: { color: '#4E295B' }
+                                },
+                                yQty: {
+                                    type: 'linear',
+                                    position: 'right',
+                                    beginAtZero: true,
+                                    grid: { drawOnChartArea: false },
+                                    title: { display: true, text: 'Nº Atendimentos', color: '#F79E1B', font: { weight: 'bold' } },
+                                    ticks: { stepSize: 1, color: '#F79E1B' }
+                                }
+                            },
                             plugins: {
                                 legend: { display: false },
                                 tooltip: {

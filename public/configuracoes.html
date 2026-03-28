@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações – Gündem Admin</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+</head>
+
+<body class="admin-body">
+    <header class="admin-header">
+        <div class="header-left">
+            <h1>Gündem <span class="badge">Configurações</span></h1>
+        </div>
+        <nav>
+            <a href="admin.html" class="btn-voltar">← Voltar ao Painel</a>
+        </nav>
+    </header>
+
+    <main class="admin-main">
+        <section class="admin-tabelas">
+            <div class="tabela-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 0;">Gerenciar Serviços</h2>
+                    <button onclick="abrirModal()" class="btn-enviar" style="width: auto; padding: 0 20px; font-size: 14px;">+ Novo Serviço</button>
+                </div>
+
+                <div id="statusApi" class="status-api" role="status" style="display:none;"></div>
+
+                <div class="table-responsive">
+                    <table class="table-admin">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Preço (R$)</th>
+                                <th>Duração</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyServicos">
+                            <!-- JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal para Novo/Editar Serviço -->
+    <div id="modalServico" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+        <div class="app-container" style="background: white; padding: 30px; border-radius: 12px; width: 400px; max-width: 90%;">
+            <h3 id="modalTitulo">Novo Serviço</h3>
+            <form id="formServico">
+                <input type="hidden" id="id_servico">
+                
+                <label class="field-label">Nome</label>
+                <input type="text" id="nome" required>
+                
+                <label class="field-label">Descrição</label>
+                <textarea id="descricao" rows="2"></textarea>
+                
+                <label class="field-label">Preço (R$)</label>
+                <input type="number" step="0.01" id="preco" required>
+                
+                <label class="field-label">Duração (minutos)</label>
+                <input type="number" id="duracao" required>
+
+                <div id="campoAtivo" style="margin-top: 10px;">
+                    <label><input type="checkbox" id="ativo" checked> Ativo</label>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn-enviar">Salvar</button>
+                    <button type="button" onclick="fecharModal()" style="background: #999;">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const token = localStorage.getItem('gundem_token');
+            const tipo = localStorage.getItem('gundem_user_tipo');
+
+            if (!token || tipo !== 'admin') {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+            function apiUrl(caminho) { return API_BASE + caminho; }
+
+            const tbody = document.getElementById('tbodyServicos');
+            const statusEl = document.getElementById('statusApi');
+            const modal = document.getElementById('modalServico');
+            const form = document.getElementById('formServico');
+
+            function setStatus(msg, tipo) {
+                statusEl.textContent = msg;
+                statusEl.className = 'status-api' + (tipo ? ' status-api--' + tipo : '');
+                statusEl.style.display = 'block';
+                if (tipo === 'ok') setTimeout(() => statusEl.style.display = 'none', 3000);
+            }
+
+            async function carregarServicos() {
+                try {
+                    const res = await fetch(apiUrl('/servicos'));
+                    const servicos = await res.json();
+                    
+                    tbody.innerHTML = servicos.map(s => `
+                        <tr>
+                            <td><strong>${s.nome}</strong></td>
+                            <td>R$ ${Number(s.preco_padrao).toFixed(2)}</td>
+                            <td>${s.duracao_minutos} min</td>
+                            <td><span class="status-tag ${s.ativo ? '' : 'status-tag--cancelado'}">${s.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                            <td>
+                                <button onclick='abrirModal(${JSON.stringify(s)})' style="background: var(--roxo-principal); color:white; padding: 4px 8px; font-size:12px;">Editar</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } catch (e) { console.error(e); }
+            }
+
+            window.abrirModal = function(servico = null) {
+                form.reset();
+                if (servico) {
+                    document.getElementById('modalTitulo').textContent = 'Editar Serviço';
+                    document.getElementById('id_servico').value = servico.id_servico;
+                    document.getElementById('nome').value = servico.nome;
+                    document.getElementById('descricao').value = servico.descricao || '';
+                    document.getElementById('preco').value = servico.preco_padrao;
+                    document.getElementById('duracao').value = servico.duracao_minutos;
+                    document.getElementById('ativo').checked = servico.ativo;
+                    document.getElementById('campoAtivo').style.display = 'block';
+                } else {
+                    document.getElementById('modalTitulo').textContent = 'Novo Serviço';
+                    document.getElementById('id_servico').value = '';
+                    document.getElementById('campoAtivo').style.display = 'none';
+                }
+                modal.style.display = 'flex';
+            };
+
+            window.fecharModal = function() { modal.style.display = 'none'; };
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('id_servico').value;
+                const payload = {
+                    nome: document.getElementById('nome').value,
+                    descricao: document.getElementById('descricao').value,
+                    preco_padrao: parseFloat(document.getElementById('preco').value),
+                    duracao_minutos: parseInt(document.getElementById('duracao').value),
+                    ativo: document.getElementById('ativo').checked
+                };
+
+                const url = id ? `/servicos/${id}` : '/servicos';
+                const method = id ? 'PUT' : 'POST';
+
+                try {
+                    const res = await fetch(apiUrl(url), {
+                        method: method,
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!res.ok) throw new Error('Erro ao salvar serviço');
+                    
+                    setStatus('Serviço salvo com sucesso!', 'ok');
+                    fecharModal();
+                    carregarServicos();
+                } catch (e) {
+                    setStatus(e.message, 'erro');
+                }
+            });
+
+            carregarServicos();
+        })();
+    </script>
+</body>
+</html>
