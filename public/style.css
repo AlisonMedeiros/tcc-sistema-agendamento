@@ -254,19 +254,42 @@ button:active {
     box-shadow: 0 4px 10px rgba(254, 107, 107, 0.3);
 }
 
-.btn-voltar {
+.btn-config{
+    background: var(--roxo-principal); 
+    margin-right: 10px;
     text-decoration: none;
-    color: var(--roxo-principal);
+    color: var(--branco);
     font-weight: 700;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    background: rgba(255, 255, 255, 0.5);
     padding: 10px 20px;
     border-radius: 25px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    position: fixed;
+    top: 20px;
+    right: 70px;
+}
+.btn-config:hover {
+    background-color: var(--rosa-destaque);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.btn-voltar {
+    text-decoration: none;
+    color: var(--branco);
+    font-weight: 700;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    background: var(--roxo-principal);
+    padding: 10px 20px;
+    border-radius: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    position: fixed;
+    top: 20px;
+    right: 10px;
 }
 
 .btn-voltar:hover {
-    color: var(--amarelo-secundario);
+    background-color: var(--rosa-destaque);
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 }
@@ -329,6 +352,9 @@ button:active {
     .admin-tabelas {
         grid-template-columns: 1fr;
     }
+    .tabela-container{
+        padding: 10px;
+    }
 }
 
 .tabela-container {
@@ -350,10 +376,6 @@ button:active {
     -webkit-text-fill-color: transparent;
 }
 
-.table-responsive {
-    overflow-x: auto;
-}
-
 .table-admin {
     width: 100%;
     border-collapse: separate;
@@ -365,7 +387,7 @@ button:active {
     color: #555;
     font-weight: 700;
     text-align: left;
-    padding: 16px;
+    padding: 10px;
 }
 
 .table-admin th:first-child {
@@ -392,12 +414,6 @@ button:active {
 
 .table-admin tr:hover td {
     background-color: rgba(255, 255, 255, 0.6);
-}
-
-.table-admin tr:hover {
-    transform: scale(1.01);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-    border-radius: 16px;
 }
 
 .text-center {

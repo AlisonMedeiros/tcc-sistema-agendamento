@@ -34,6 +34,73 @@ app.get('/', (req, res) => {
 });
 
 /**
+ * CRIAR NOVO SERVIÇO (Usado na tela de configurações)
+ */
+app.post('/servicos', async (req, res) => {
+    const { nome, descricao, preco_padrao, duracao_minutos, ativo } = req.body;
+
+    // Validação básica
+    if (!nome || !preco_padrao || !duracao_minutos) {
+        return res.status(400).json({ erro: 'Nome, preço e duração são obrigatórios.' });
+    }
+
+    try {
+        const resultado = await db.query(
+            `INSERT INTO servicos (nome, descricao, preco_padrao, duracao_minutos, ativo)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING *`,
+            [
+                nome, 
+                descricao || null, 
+                preco_padrao, 
+                duracao_minutos, 
+                ativo !== undefined ? ativo : true
+            ]
+        );
+        res.status(201).json(resultado.rows[0]);
+    } catch (erro) {
+        console.error('Erro ao criar serviço:', erro);
+        res.status(500).json({ erro: 'Erro interno ao criar o serviço no banco de dados.' });
+    }
+});
+
+/**
+ * ATUALIZAR SERVIÇO EXISTENTE (Usado na tela de configurações)
+ */
+app.put('/servicos/:id', async (req, res) => {
+    const { id } = req.params;
+    const { nome, descricao, preco_padrao, duracao_minutos, ativo } = req.body;
+
+    if (!nome || !preco_padrao || !duracao_minutos) {
+        return res.status(400).json({ erro: 'Nome, preço e duração são obrigatórios.' });
+    }
+
+    try {
+        const resultado = await db.query(
+            `UPDATE servicos 
+             SET nome = $1, 
+                 descricao = $2, 
+                 preco_padrao = $3, 
+                 duracao_minutos = $4, 
+                 ativo = $5,
+                 atualizado_em = NOW()
+             WHERE id_servico = $6 
+             RETURNING *`,
+            [nome, descricao || null, preco_padrao, duracao_minutos, ativo, id]
+        );
+
+        if (resultado.rows.length === 0) {
+            return res.status(404).json({ erro: 'Serviço não encontrado.' });
+        }
+
+        res.json(resultado.rows[0]);
+    } catch (erro) {
+        console.error('Erro ao atualizar serviço:', erro);
+        res.status(500).json({ erro: 'Erro interno ao atualizar o serviço.' });
+    }
+});
+
+/**
  * Dashboard: Agendamentos de Hoje com breakdown por status
  */
 app.get('/dashboard/hoje', verificarToken, async (req, res) => {
@@ -73,15 +140,25 @@ app.get('/dashboard/clientes', verificarToken, async (req, res) => {
     }
 });
 
-/** Lista serviços ativos */
+/** Lista serviços (Com filtro para clientes ou completo para admin) */
 app.get('/servicos', async (req, res) => {
     try {
-        const resultado = await db.query(
-            `SELECT id_servico, nome, descricao, duracao_minutos, preco_padrao, ativo
-             FROM servicos
-             WHERE ativo = TRUE
-             ORDER BY nome`
-        );
+        // Verifica se a URL tem ?todos=true (enviado pelo painel de configurações)
+        const mostrarTodos = req.query.todos === 'true';
+        
+        let querySql = `
+            SELECT id_servico, nome, descricao, duracao_minutos, preco_padrao, ativo
+            FROM servicos
+        `;
+        
+        // Se NÃO for para mostrar todos, filtramos apenas os ativos (para a tela da cliente)
+        if (!mostrarTodos) {
+            querySql += ` WHERE ativo = TRUE`;
+        }
+        
+        querySql += ` ORDER BY nome`;
+
+        const resultado = await db.query(querySql);
         res.json(resultado.rows);
     } catch (erro) {
         console.error(erro);
@@ -344,6 +421,81 @@ app.post('/agendar', async (req, res) => {
         console.error(erro);
         res.status(500).json({ erro: 'Erro ao agendar.' });
     } finally {
+        client.release();
+    }
+});
+/**
+ * AGENDAMENTO EM LOTE (PACOTE MENSAL/SEMANAL)
+ * Cria múltiplos agendamentos repetidos a cada 7 dias
+ */
+app.post('/agendamentos/pacote', async (req, res) => {
+    // Recebemos a quantidade de semanas que a Débora quer fechar
+    const { id_cliente, id_servico, data_hora_inicio, qtd_semanas } = req.body;
+
+    if (!id_cliente || !id_servico || !data_hora_inicio || !qtd_semanas) {
+        return res.status(400).json({ erro: 'Dados incompletos para fechar o pacote.' });
+    }
+
+    // Solicitamos um cliente dedicado do pool para a Transação
+    const client = await db.connect();
+
+    try {
+        // Inicia a transação! Tudo a partir daqui é "temporário" até o COMMIT
+        await client.query('BEGIN');
+
+        // 1. Descobrir a duração do serviço para calcular a hora de fim
+        const resServico = await client.query('SELECT duracao_minutos FROM servicos WHERE id_servico = $1', [id_servico]);
+        if (resServico.rows.length === 0) throw new Error('Serviço não encontrado.');
+        const duracao = resServico.rows[0].duracao_minutos;
+
+        let dataBase = new Date(data_hora_inicio);
+        let agendamentosCriados = [];
+
+        // 2. Laço de repetição (Loop) para criar cada semana do pacote
+        for (let i = 0; i < qtd_semanas; i++) {
+            // Soma exatamente 7 dias (em milissegundos) para cada iteração do loop
+            let inicio = new Date(dataBase.getTime() + (i * 7 * 24 * 60 * 60 * 1000));
+            let fim = new Date(inicio.getTime() + (duracao * 60 * 1000));
+
+            // 3. Verificação CRÍTICA: Existe conflito neste horário específico?
+            const conflito = await client.query(`
+                SELECT id_agendamento FROM agendamentos
+                WHERE status != 'cancelado'
+                  AND data_hora_inicio < $2
+                  AND data_hora_fim > $1
+            `, [inicio, fim]);
+
+            if (conflito.rows.length > 0) {
+                // Se der conflito, disparamos um erro amigável dizendo exatamente qual dia falhou!
+                throw new Error(`O horário da semana ${i + 1} (${inicio.toLocaleString('pt-BR')}) já está ocupado por outra cliente! Pacote não foi agendado.`);
+            }
+
+            // 4. Se o horário está livre, gravamos no banco
+            const resInsert = await client.query(`
+                INSERT INTO agendamentos (id_cliente, id_servico, data_hora_inicio, data_hora_fim, status)
+                VALUES ($1, $2, $3, $4, 'marcado')
+                RETURNING id_agendamento, data_hora_inicio
+            `, [id_cliente, id_servico, inicio, fim]);
+
+            agendamentosCriados.push(resInsert.rows[0]);
+        }
+
+        // Se o loop terminou sem nenhum erro, CONFIRMAMOS a gravação de tudo!
+        await client.query('COMMIT');
+        
+        res.status(201).json({ 
+            mensagem: `${qtd_semanas} semanas agendadas com sucesso!`, 
+            agendamentos: agendamentosCriados 
+        });
+
+    } catch (erro) {
+        // Se qualquer coisa der errado (ex: conflito de horário), DESFAZEMOS tudo!
+        await client.query('ROLLBACK');
+        console.error('Erro ao agendar pacote:', erro.message);
+        // Enviamos o erro exato para a tela da Débora
+        res.status(400).json({ erro: erro.message });
+    } finally {
+        // Libertamos a conexão de volta para o pool
         client.release();
     }
 });

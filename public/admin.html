@@ -25,11 +25,11 @@
 <body class="admin-body">
     <header class="admin-header">
         <div class="header-left">
-            <h1>Güdem <span class="badge">Admin</span></h1>
+            <h1>Gündem <span class="badge">Admin</span></h1>
         </div>
         <nav>
-            <a href="configuracoes.html" class="btn-voltar" style="background: var(--roxo-principal); color: white; margin-right: 10px;">⚙ Configurações</a>
-            <a href="index.html" class="btn-voltar">← Voltar ao App</a>
+            <a href="configuracoes.html" class="btn-config" >⚙</a>
+            <a href="index.html" class="btn-voltar">←</a>
         </nav>
     </header>
 
@@ -65,12 +65,14 @@
         <section class="admin-tabelas">
             <div class="tabela-container">
                 <div
-                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
-                    <h2 style="margin-bottom: 0;">Todos os Agendamentos</h2>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h2 style="margin-bottom: 0;">Todos os Agendamentos</h2>
+                        <button onclick="abrirModalPacote()" class="btn-enviar" style="width: auto; padding: 8px 16px; font-size: 14px; border-radius: 8px;">+ Novo Pacote Semanal</button>
+                    </div>
                     <div style="display: flex; gap: 8px;">
-                        <input type="date" id="filtroDataAgendamento"
-                            style="margin-bottom: 0; padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; height: 38px;">
-                        <select id="filtroStatusAgendamento" style="height: 38px; border-radius: 8px; border: 1px solid #ccc; padding: 0 10px;">
+                        <input type="date" id="filtroDataAgendamento">
+                        <select id="filtroStatusAgendamento">
                             <option value="">Todos Status</option>
                             <option value="marcado">Marcado</option>
                             <option value="confirmado">Confirmado</option>
@@ -121,6 +123,38 @@
             </div>
         </section>
     </main>
+    <div id="modalPacote" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+    <div class="app-container" style="background: white; padding: 30px; border-radius: 12px; width: 400px; max-width: 90%;">
+        <h3 style="color: var(--roxo-principal); margin-bottom: 16px;">Agendar Pacote (Fixo)</h3>
+        
+        <div id="statusPacote" class="status-api" style="display:none; margin-bottom: 16px;"></div>
+        
+        <form id="formPacote">
+            <label class="field-label">E-mail da Cliente</label>
+            <input type="email" id="pacoteEmail" required placeholder="E-mail cadastrado da cliente">
+
+            <label class="field-label">Serviço</label>
+            <select id="pacoteServico" required>
+                <option value="" disabled selected>Selecione um serviço...</option>
+            </select>
+
+            <label class="field-label">Data e Hora Inicial</label>
+            <input type="datetime-local" id="pacoteDataHora" required>
+
+            <label class="field-label">Duração do Pacote</label>
+            <select id="pacoteSemanas" required>
+                <option value="4">4 semanas (1 mês)</option>
+                <option value="8">8 semanas (2 meses)</option>
+                <option value="12">12 semanas (3 meses)</option>
+            </select>
+
+            <div style="display: flex; gap: 10px; margin-top: 24px;">
+                <button type="submit" class="btn-enviar" id="btnSalvarPacote">Agendar Semanas</button>
+                <button type="button" onclick="fecharModalPacote()" style="background: #999;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
 
     <script>
         (function () {
@@ -424,7 +458,95 @@
                     console.warn('Auto-refresh falhou silenciosamente:', e);
                 }
             }
+                    // ==========================================
+        // LÓGICA DO PACOTE SEMANAL
+        // ==========================================
+            
+        window.abrirModalPacote = async function() {
+            document.getElementById('modalPacote').style.display = 'flex';
+            document.getElementById('statusPacote').style.display = 'none';
+            document.getElementById('formPacote').reset();
+        
+            // Carrega os serviços no select do modal
+            try {
+                const resS = await fetch(apiUrl('/servicos'));
+                const servicos = await resS.json();
+                const sel = document.getElementById('pacoteServico');
+                sel.innerHTML = '<option value="" disabled selected>Selecione um serviço...</option>';
+                servicos.forEach(s => {
+                    sel.innerHTML += `<option value="${s.id_servico}">${s.nome} (R$ ${Number(s.preco_padrao).toFixed(2)})</option>`;
+                });
+            } catch(e) { console.error("Erro ao carregar serviços para o modal de pacotes.", e); }
+        };
+        
+        window.fecharModalPacote = function() {
+            document.getElementById('modalPacote').style.display = 'none';
+        };
+        
+        document.getElementById('formPacote').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('pacoteEmail').value.trim();
+            const idServico = document.getElementById('pacoteServico').value;
+            const dataHora = document.getElementById('pacoteDataHora').value;
+            const qtdSemanas = document.getElementById('pacoteSemanas').value;
+            const statusEl = document.getElementById('statusPacote');
+            const btnSalvar = document.getElementById('btnSalvarPacote');
+        
+            btnSalvar.disabled = true;
+            statusEl.textContent = 'Buscando cliente...';
+            statusEl.className = 'status-api status-api--info';
+            statusEl.style.display = 'block';
+        
+            try {
+                // 1. Usa a rota existente para buscar a cliente pelo e-mail
+                const resCli = await fetch(apiUrl('/clientes/buscar?email=' + encodeURIComponent(email)));
+                if (!resCli.ok) throw new Error('Cliente não encontrada. Verifique o e-mail digitado.');
+                const cliente = await resCli.json();
+            
+                // 2. Envia os dados para a nossa nova rota de lotes (Pacote)
+                statusEl.textContent = 'Verificando a agenda para as próximas ' + qtdSemanas + ' semanas...';
+                const resPacote = await fetch(apiUrl('/agendamentos/pacote'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('gundem_token')
+                    },
+                    body: JSON.stringify({
+                        id_cliente: cliente.id_cliente,
+                        id_servico: Number(idServico),
+                        data_hora_inicio: dataHora,
+                        qtd_semanas: Number(qtdSemanas)
+                    })
+                });
+            
+                const body = await resPacote.json();
+                
+                if (!resPacote.ok) {
+                    // Se houver conflito, mostramos o erro que veio do backend!
+                    throw new Error(body.erro || 'Erro ao agendar pacote.');
+                }
+            
+                // Sucesso!
+                statusEl.textContent = '✔ ' + body.mensagem;
+                statusEl.className = 'status-api status-api--ok';
+                
+                // Atualiza a tabela do painel de fundo para mostrar as novas marcações
+                await carregarListaFiltro();
+                await carregarDashboard();
+            
+                // Fecha a janela após 2.5 segundos
+                setTimeout(fecharModalPacote, 2500);
+            
+            } catch(err) {
+                statusEl.textContent = err.message;
+                statusEl.className = 'status-api status-api--erro';
+            } finally {
+                btnSalvar.disabled = false;
+            }
+        });
         })();
+
     </script>
 </body>
 

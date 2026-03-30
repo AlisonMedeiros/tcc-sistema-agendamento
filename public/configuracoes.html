@@ -108,7 +108,7 @@
 
             async function carregarServicos() {
                 try {
-                    const res = await fetch(apiUrl('/servicos'));
+                    const res = await fetch(apiUrl('/servicos?todos=true'));//alteração para exibir inativos para admin
                     const servicos = await res.json();
                     
                     tbody.innerHTML = servicos.map(s => `
