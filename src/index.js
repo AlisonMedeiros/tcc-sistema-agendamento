@@ -36,7 +36,8 @@ app.get('/', (req, res) => {
 /**
  * CRIAR NOVO SERVIÇO (Usado na tela de configurações)
  */
-app.post('/servicos', async (req, res) => {
+app.post('/servicos', verificarToken, async (req, res) => {
+    if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
     const { nome, descricao, preco_padrao, duracao_minutos, ativo } = req.body;
 
     // Validação básica
@@ -67,7 +68,8 @@ app.post('/servicos', async (req, res) => {
 /**
  * ATUALIZAR SERVIÇO EXISTENTE (Usado na tela de configurações)
  */
-app.put('/servicos/:id', async (req, res) => {
+app.put('/servicos/:id', verificarToken, async (req, res) => {
+    if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
     const { id } = req.params;
     const { nome, descricao, preco_padrao, duracao_minutos, ativo } = req.body;
 
@@ -166,7 +168,7 @@ app.get('/servicos', async (req, res) => {
     }
 });
 
-app.get('/clientes', async (req, res) => {
+app.get('/clientes', verificarToken, async (req, res) => {
     try {
         const resultado = await db.query(
             'SELECT id_cliente, nome, telefone, email FROM clientes ORDER BY nome'
@@ -237,7 +239,7 @@ app.get('/pagamentos', async (req, res) => {
 });
 
 /** Últimos agendamentos (com filtro opcional por data) */
-app.get('/agendamentos', async (req, res) => {
+app.get('/agendamentos', verificarToken, async (req, res) => {
     try {
         const limite = Math.min(parseInt(req.query.limite, 10) || 50, 100);
         const dataFiltro = req.query.data;
@@ -554,7 +556,7 @@ app.post('/login', async (req, res) => {
         if (!usuario) return res.status(401).json({ erro: 'Credenciais inválidas.' });
 
         const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
-        if (!senhaValida && usuario.senha_hash !== senha) return res.status(401).json({ erro: 'Credenciais inválidas.' });
+        if (!senhaValida) return res.status(401).json({ erro: 'Credenciais inválidas.' });
 
         const token = jwt.sign({ id: usuario.id_usuario, tipo: usuario.tipo }, SECRET_KEY, { expiresIn: '8h' });
         res.json({ usuario: { id: usuario.id_usuario, nome: usuario.nome, tipo: usuario.tipo }, token });
@@ -563,31 +565,6 @@ app.post('/login', async (req, res) => {
     }
 });
 
-app.post('/servicos', verificarToken, async (req, res) => {
-    if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
-    const { nome, descricao, duracao_minutos, preco_padrao } = req.body;
-    try {
-        const resultado = await db.query('INSERT INTO servicos (nome, descricao, duracao_minutos, preco_padrao) VALUES ($1, $2, $3, $4) RETURNING *', [nome, descricao, duracao_minutos, preco_padrao]);
-        res.status(201).json(resultado.rows[0]);
-    } catch (erro) {
-        res.status(500).json({ erro: 'Erro ao criar serviço.' });
-    }
-});
-
-app.put('/servicos/:id', verificarToken, async (req, res) => {
-    if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
-    const { id } = req.params;
-    const { nome, descricao, duracao_minutos, preco_padrao, ativo } = req.body;
-    try {
-        const resultado = await db.query(
-            `UPDATE servicos SET nome = $1, descricao = $2, duracao_minutos = $3, preco_padrao = $4, ativo = $5, atualizado_em = NOW() WHERE id_servico = $6 RETURNING *`,
-            [nome, descricao, duracao_minutos, preco_padrao, ativo, id]
-        );
-        res.json(resultado.rows[0]);
-    } catch (erro) {
-        res.status(500).json({ erro: 'Erro ao atualizar serviço.' });
-    }
-});
 
 const pastaPublica = path.resolve(__dirname, '../public');
 app.use(express.static(pastaPublica));

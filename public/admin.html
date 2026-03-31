@@ -194,7 +194,9 @@
                     let url = apiUrl('/agendamentos?limite=100');
                     if (dataFiltro) url += '&data=' + dataFiltro;
 
-                    var resA = await fetch(url);
+                    var resA = await fetch(url, {
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
+                    });
                     if (!resA.ok) throw new Error('Falha ao carregar agendamentos');
                     var agendamentos = await resA.json();
 

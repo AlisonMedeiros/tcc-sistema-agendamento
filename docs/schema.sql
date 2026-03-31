@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS clientes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_clientes_telefone ON clientes (telefone);
+CREATE INDEX IF NOT EXISTS idx_clientes_email    ON clientes (email);
+
 
 CREATE TABLE IF NOT EXISTS servicos (
     id_servico      SERIAL PRIMARY KEY,
@@ -123,12 +125,8 @@ FROM (
 WHERE NOT EXISTS (SELECT 1 FROM servicos s WHERE s.nome = v.nome);
 
 
--- 3. Inserir Usuários de Teste (Admin e Cliente) -> ADICIONADO AQUI!
-INSERT INTO usuarios (nome, email, senha_hash, tipo)
-SELECT v.nome, v.email, v.senha, v.tipo::tipo_usuario
-FROM (
-    VALUES 
-        ('Débora Braga', 'admin@gudem.com', '85651286', 'admin'),
-        ('Silene Malaquias', 'silene@email.com', '123456', 'cliente')
-) AS v(nome, email, senha, tipo)
-WHERE NOT EXISTS (SELECT 1 FROM usuarios u WHERE u.email = v.email);
+-- 3. Usuários de acesso ao sistema
+-- ⚠️  NÃO insira senhas em texto puro aqui!
+--     Execute o script de seed para criar usuários com hash bcrypt:
+--         npm run seed
+-- Isso garante que as senhas fiquem protegidas no banco de dados.

@@ -1,5 +1,5 @@
-# Usar imagem leve do Node.js
-FROM node:20-alpine
+# Usar imagem completa do Node.js (Debian) para garantir compatibilidade com bcrypt e outras dependências nativas
+FROM node:20
 
 # Definir diretório de trabalho
 WORKDIR /app
@@ -7,7 +7,7 @@ WORKDIR /app
 # Copiar arquivos de dependências
 COPY package*.json ./
 
-# Instalar dependências (incluindo as de desenvolvimento se necessário, ou use --production)
+# Instalar dependências
 RUN npm install
 
 # Copiar o restante da aplicação
@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 3000
 
 # Comando para iniciar o servidor
-CMD ["npm", "run", "dev"]
+CMD ["node", "src/index.js"]
