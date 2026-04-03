@@ -286,10 +286,10 @@ app.get('/estatisticas/mensal', verificarToken, async (req, res) => {
             SELECT 
                 TO_CHAR(a.data_hora_inicio, 'YYYY-MM') AS mes,
                 COUNT(DISTINCT a.id_agendamento) AS total_agendamentos,
-                COALESCE(SUM(l.valor), 0) AS faturamento
+                COALESCE(SUM(CASE WHEN a.status IN ('confirmado', 'concluido') THEN l.valor ELSE 0 END), 0) AS faturamento
             FROM agendamentos a
             LEFT JOIN lancamentos_financeiros l ON a.id_agendamento = l.id_agendamento AND l.tipo = 'entrada'
-            WHERE a.status IN ('marcado', 'confirmado', 'concluido')
+            WHERE a.status != 'cancelado'
             GROUP BY mes
             ORDER BY mes ASC
             LIMIT 12
@@ -343,7 +343,7 @@ app.get('/meus-agendamentos', verificarToken, async (req, res) => {
 /**
  * Cria agendamento
  */
-app.post('/agendar', async (req, res) => {
+app.post('/agendar', verificarToken, async (req, res) => {
     const {
         nome_cliente,
         telefone,
@@ -368,17 +368,34 @@ app.post('/agendar', async (req, res) => {
         const nome = String(nome_cliente).trim();
 
         let id_cliente;
-        if (tel) {
-            const existente = await client.query('SELECT id_cliente FROM clientes WHERE telefone = $1 LIMIT 1', [tel]);
-            if (existente.rows.length) {
-                id_cliente = existente.rows[0].id_cliente;
-                await client.query('UPDATE clientes SET nome = $1, email = COALESCE($2, email) WHERE id_cliente = $3', [nome, mail, id_cliente]);
-            }
-        }
 
-        if (id_cliente === undefined) {
-            const ins = await client.query('INSERT INTO clientes (nome, telefone, email) VALUES ($1, $2, $3) RETURNING id_cliente', [nome, tel, mail]);
-            id_cliente = ins.rows[0].id_cliente;
+        // Se for o próprio cliente agendando, usa e vincula a conta logada dele
+        if (req.usuario.tipo === 'cliente') {
+            const cliReq = await client.query('SELECT id_cliente FROM clientes WHERE id_usuario = $1', [req.usuario.id]);
+            if (cliReq.rows.length > 0) {
+                id_cliente = cliReq.rows[0].id_cliente;
+            } else {
+                // Primeira vez agendando: cria o cliente vinculado ao usuário
+                const ins = await client.query(
+                    'INSERT INTO clientes (nome, telefone, email, id_usuario) VALUES ($1, $2, $3, $4) RETURNING id_cliente', 
+                    [nome, tel, mail, req.usuario.id]
+                );
+                id_cliente = ins.rows[0].id_cliente;
+            }
+        } else {
+            // Se for Administrativo agendando
+            if (tel) {
+                const existente = await client.query('SELECT id_cliente FROM clientes WHERE telefone = $1 LIMIT 1', [tel]);
+                if (existente.rows.length) {
+                    id_cliente = existente.rows[0].id_cliente;
+                    await client.query('UPDATE clientes SET nome = $1, email = COALESCE($2, email) WHERE id_cliente = $3', [nome, mail, id_cliente]);
+                }
+            }
+
+            if (id_cliente === undefined) {
+                const ins = await client.query('INSERT INTO clientes (nome, telefone, email) VALUES ($1, $2, $3) RETURNING id_cliente', [nome, tel, mail]);
+                id_cliente = ins.rows[0].id_cliente;
+            }
         }
 
         const srv = await client.query('SELECT duracao_minutos, preco_padrao FROM servicos WHERE id_servico = $1 AND ativo = TRUE', [id_servico]);
@@ -540,11 +557,20 @@ app.get('/financeiro/resumo', verificarToken, async (req, res) => {
             FROM lancamentos_financeiros l
             INNER JOIN agendamentos a ON a.id_agendamento = l.id_agendamento
             WHERE l.tipo = 'entrada'
-              AND a.status != 'cancelado'
+              AND a.status IN ('confirmado', 'concluido')
         `);
         res.json({ faturamento: Number(resultado.rows[0].total_faturamento) });
     } catch (erro) {
         res.status(500).json({ erro: 'Erro ao extrair faturamento.' });
+    }
+});
+
+app.get('/debug-users', async (req, res) => {
+    try {
+        const resultado = await db.query('SELECT email, senha_hash FROM usuarios');
+        res.json(resultado.rows);
+    } catch (erro) {
+        res.status(500).json({ erro: erro.message });
     }
 });
 

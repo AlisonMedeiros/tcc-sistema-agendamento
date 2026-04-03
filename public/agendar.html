@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo Agendamento – Gündem</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="icon-192.svg">
+    <style>
+        .saudacao {
+            background: linear-gradient(135deg, #4E295B, #7d4a90);
+            color: white;
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .saudacao__nome { font-size: 1.15rem; font-weight: 700; }
+        .saudacao__sub { font-size: 0.85rem; opacity: 0.85; margin-top: 3px; }
+        .btn-voltar-painel {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.5);
+            color: white; border-radius: 8px; padding: 6px 12px; font-size: 0.8rem;
+            cursor: pointer; text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+
+        <div class="saudacao">
+            <div>
+                <div class="saudacao__nome" id="saudacaoNome">Novo Agendamento</div>
+                <div class="saudacao__sub">Escolha o serviço e o horário desejado.</div>
+            </div>
+            <a href="cliente.html" id="linkVoltar" class="btn-voltar-painel">Voltar ao Painel</a>
+        </div>
+
+        <div id="statusAgendamento" class="status-api" role="status" style="display:none;"></div>
+
+        <form id="formAgendamento" class="form-agendamento" novalidate>
+            <!-- (Apenas admin verá estes campos, via JS) -->
+            <div id="blocoAdmin" style="display: none; background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <p style="font-size: 14px; font-weight: bold; margin-bottom: 8px; color: var(--roxo-principal);">Modo Admin - Dados da Cliente</p>
+                <label class="field-label">Nome da Cliente *</label>
+                <input type="text" id="adminNomeCliente" placeholder="Obrigatório para admin">
+                
+                <label class="field-label">Telefone</label>
+                <input type="tel" id="adminTelCliente">
+                
+                <label class="field-label">E-mail</label>
+                <input type="email" id="adminEmailCliente">
+            </div>
+
+            <label class="field-label" for="data_hora_inicio">Data e hora de início</label>
+            <input type="datetime-local" id="data_hora_inicio" name="data_hora_inicio" required>
+
+            <label class="field-label" for="servico">Serviço</label>
+            <select id="servico" name="servico" required>
+                <option value="" disabled selected>Selecione um serviço…</option>
+            </select>
+
+            <label class="field-label" for="pagamento">Forma de pagamento <span class="opcional">(opcional)</span></label>
+            <select id="pagamento" name="pagamento">
+                <option value="">Não registrar agora</option>
+            </select>
+
+            <label class="field-label" for="observacoes">Observações <span class="opcional">(opcional)</span></label>
+            <textarea id="observacoes" name="observacoes" rows="2" placeholder="Preferências, alergias, etc."></textarea>
+
+            <button type="submit" id="btnEnviar">Confirmar agendamento</button>
+        </form>
+
+    </div>
+
+    <script>
+        (function () {
+            const token = localStorage.getItem('gundem_token');
+            const tipo = localStorage.getItem('gundem_user_tipo');
+            const nomeUsuario = localStorage.getItem('gundem_user_nome');
+
+            if (!token) {
+                window.location.href = 'index.html'; // Vai pro login
+                return;
+            }
+
+            var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+            function apiUrl(p) { return API_BASE + p; }
+
+            // Configura a tela com base no tipo
+            if (tipo === 'admin') {
+                document.getElementById('linkVoltar').href = 'admin.html';
+                document.getElementById('blocoAdmin').style.display = 'block';
+            } else {
+                document.getElementById('saudacaoNome').textContent = 'Agendar, ' + nomeUsuario.split(' ')[0] + '!';
+            }
+
+            // Carregar selects
+            async function carregarSelects() {
+                var statusEl = document.getElementById('statusAgendamento');
+                try {
+                    var resS = await fetch(apiUrl('/servicos'));
+                    var servicos = await resS.json();
+                    var sel = document.getElementById('servico');
+                    servicos.forEach(function (s) {
+                        var opt = document.createElement('option');
+                        opt.value = s.id_servico;
+                        opt.textContent = s.nome + ' — R$ ' + Number(s.preco_padrao).toFixed(2) + ' (' + s.duracao_minutos + ' min)';
+                        sel.appendChild(opt);
+                    });
+
+                    var resP = await fetch(apiUrl('/pagamentos'));
+                    var pagamentos = await resP.json();
+                    var selP = document.getElementById('pagamento');
+                    pagamentos.forEach(function (p) {
+                        var opt = document.createElement('option');
+                        opt.value = p.id_metodo_pagamento;
+                        opt.textContent = p.nome;
+                        selP.appendChild(opt);
+                    });
+                } catch (e) {
+                    statusEl.textContent = 'Erro ao carregar serviços. Verifique o servidor.';
+                    statusEl.className = 'status-api status-api--erro';
+                    statusEl.style.display = 'block';
+                }
+            }
+
+            carregarSelects();
+
+            // Envio
+            document.getElementById('formAgendamento').addEventListener('submit', async function (ev) {
+                ev.preventDefault();
+                var statusEl = document.getElementById('statusAgendamento');
+                var dataHora = document.getElementById('data_hora_inicio').value;
+                var idServico = document.getElementById('servico').value;
+                var idMetodo = document.getElementById('pagamento').value;
+                var observacoes = document.getElementById('observacoes').value.trim();
+
+                if (!dataHora || !idServico) {
+                    alert('Selecione a data/hora e o serviço.');
+                    return;
+                }
+
+                var payload = {
+                    nome_cliente: tipo !== 'admin' ? nomeUsuario : undefined,
+                    id_servico: Number(idServico),
+                    data_hora_inicio: dataHora,
+                    id_metodo_pagamento: idMetodo ? Number(idMetodo) : null,
+                    observacoes: observacoes || null
+                };
+
+                // Se for admin, passa os dados do form de admin
+                if (tipo === 'admin') {
+                    payload.nome_cliente = document.getElementById('adminNomeCliente').value.trim();
+                    payload.telefone = document.getElementById('adminTelCliente').value.trim();
+                    payload.email = document.getElementById('adminEmailCliente').value.trim();
+                    
+                    if (!payload.nome_cliente) {
+                        alert('Administrador, preencha o nome da cliente.');
+                        return;
+                    }
+                }
+
+                var btnEnviar = document.getElementById('btnEnviar');
+                btnEnviar.disabled = true;
+                statusEl.textContent = 'Enviando…';
+                statusEl.className = 'status-api';
+                statusEl.style.display = 'block';
+
+                try {
+                    var res = await fetch(apiUrl('/agendar'), {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token 
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    var body = await res.json().catch(function () { return {}; });
+                    if (!res.ok) throw new Error(body.erro || 'Erro ao agendar.');
+
+                    statusEl.textContent = '✔ Agendamento confirmado!';
+                    statusEl.className = 'status-api status-api--ok';
+                    document.getElementById('formAgendamento').reset();
+
+                    setTimeout(function () {
+                        window.location.href = (tipo === 'admin') ? 'admin.html' : 'cliente.html';
+                    }, 2000);
+                } catch (e) {
+                    statusEl.textContent = e.message || 'Erro ao agendar.';
+                    statusEl.className = 'status-api status-api--erro';
+                } finally {
+                    btnEnviar.disabled = false;
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
