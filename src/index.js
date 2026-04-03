@@ -28,7 +28,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
     res.json({
         ok: true,
-        mensagem: 'API do Sistema de Agendamento – Güdem',
+        mensagem: 'API do Sistema de Agendamento – Gündem',
         rotas: ['GET /servicos', 'GET /pagamentos', 'GET /agendamentos', 'POST /agendar'],
     });
 });

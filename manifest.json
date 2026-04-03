@@ -1,7 +1,7 @@
 {
-  "name": "Güdem",
-  "short_name": "Güdem",
-  "description": "Sistema de Agendamento Güdem",
+  "name": "Gündem",
+  "short_name": "Gündem",
+  "description": "Sistema de Agendamento Gündem",
   "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#fdfdfd",

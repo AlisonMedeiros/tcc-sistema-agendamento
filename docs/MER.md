@@ -1,6 +1,6 @@
 # Modelo Entidade–Relacionamento (MER) – Sistema de Agendamento e Gestão
 
-Este documento apresenta o Modelo Entidade–Relacionamento (MER) do sistema de agendamento e gestão do Güdem, com foco em três áreas principais: autoagendamento pelas clientes, gestão da agenda pela profissional e controle financeiro básico. O módulo de controle de estoque **não** faz parte deste modelo.
+Este documento apresenta o Modelo Entidade–Relacionamento (MER) do sistema de agendamento e gestão do Gündem, com foco em três áreas principais: autoagendamento pelas clientes, gestão da agenda pela profissional e controle financeiro básico. O módulo de controle de estoque **não** faz parte deste modelo.
 
 ---
 

@@ -1,4 +1,4 @@
-# Sistema de Agendamento e Gestão - Güdem
+# Sistema de Agendamento e Gestão - Gündem
 
 Repositório oficial do Trabalho de Conclusão de Curso (TCC) do curso de Análise e Desenvolvimento de Sistemas.
 
