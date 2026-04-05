@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recuperar Senha – Gündem</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+</head>
+<body>
+    <div class="app-container">
+        <h2>Recuperar Senha</h2>
+        <p class="subtitulo">Informe seu e-mail para recuperar o acesso.</p>
+
+        <div id="statusRec" class="status-api" style="display: none;" role="status"></div>
+
+        <div id="boxSenha" style="display: none; background: #eef2f3; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+            <p style="font-size: 13px; color: #555; margin-bottom: 5px;">(Simulação TCC: A nova senha que "chegaria" no seu e-mail)</p>
+            <h3 id="senhaTexto" style="color: var(--roxo-principal); letter-spacing: 2px;"></h3>
+        </div>
+
+        <form id="formRec" class="form-agendamento" novalidate>
+            <label class="field-label" for="email">E-mail Cadastrado</label>
+            <input type="email" id="email" required placeholder="Digite seu e-mail">
+
+            <button type="submit" id="btnRecuperar">Gerar Nova Senha</button>
+            <a href="login.html" style="display: block; text-align: center; color: var(--roxo-principal); font-size: 14px; text-decoration: none; margin-top: 15px;">Voltar ao Login</a>
+        </form>
+    </div>
+
+    <script>
+        (function () {
+            var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+            function apiUrl(p) { return API_BASE + p; }
+
+            var form = document.getElementById('formRec');
+            var statusEl = document.getElementById('statusRec');
+            var btnRecuperar = document.getElementById('btnRecuperar');
+
+            function setStatus(msg, tipoMsg) {
+                statusEl.textContent = msg;
+                statusEl.className = 'status-api' + (tipoMsg ? ' status-api--' + tipoMsg : '');
+                statusEl.style.display = 'block';
+            }
+
+            form.addEventListener('submit', async function (ev) {
+                ev.preventDefault();
+                var email = document.getElementById('email').value.trim();
+                
+                if (!email) {
+                    setStatus('Informe o e-mail.', 'erro');
+                    return;
+                }
+
+                btnRecuperar.disabled = true;
+                setStatus('Solicitando nova senha...', 'info');
+
+                try {
+                    var res = await fetch(apiUrl('/recuperar'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: email })
+                    });
+                    
+                    var body = await res.json().catch(function() { return {}; });
+
+                    if (!res.ok) {
+                        throw new Error(body.erro || 'Falha ao recuperar conta.');
+                    }
+
+                    setStatus('✔ ' + body.mensagem, 'ok');
+                    
+                    if (body.senhaSimulada) {
+                        document.getElementById('boxSenha').style.display = 'block';
+                        document.getElementById('senhaTexto').textContent = body.senhaSimulada;
+                    }
+
+                } catch (e) {
+                    setStatus(e.message, 'erro');
+                } finally {
+                    btnRecuperar.disabled = false;
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
