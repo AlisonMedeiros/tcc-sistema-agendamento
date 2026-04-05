@@ -26,11 +26,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
-    res.json({
-        ok: true,
-        mensagem: 'API do Sistema de Agendamento – Gündem',
-        rotas: ['GET /servicos', 'GET /pagamentos', 'GET /agendamentos', 'POST /agendar'],
-    });
+    res.redirect('/index.html');
 });
 
 /**
@@ -574,6 +570,126 @@ app.get('/debug-users', async (req, res) => {
     }
 });
 
+app.post('/registro', async (req, res) => {
+    const { nome, email, telefone, senha } = req.body;
+
+    if (!nome || !email || !telefone || !senha) {
+        return res.status(400).json({ erro: 'Todos os campos são obrigatórios.' });
+    }
+
+    if (senha.length < 6) {
+        return res.status(400).json({ erro: 'A senha deve ter pelo menos 6 caracteres.' });
+    }
+
+    const emailTratado = email.toLowerCase().trim();
+    const clientePool = await db.connect();
+
+    try {
+        await clientePool.query('BEGIN');
+
+        // Verifica se o e-mail já existe na tabela usuarios
+        const verificaEmail = await clientePool.query('SELECT id_usuario FROM usuarios WHERE email = $1', [emailTratado]);
+        if (verificaEmail.rows.length > 0) {
+            await clientePool.query('ROLLBACK');
+            return res.status(409).json({ erro: 'Este e-mail já está em uso.' });
+        }
+
+        // Criptografa a senha
+        const saltRounds = 10;
+        const senhaHash = await bcrypt.hash(senha, saltRounds);
+
+        // Insere na tabela usuarios (com tipo = 'cliente')
+        const ins_usuario = await clientePool.query(
+            `INSERT INTO usuarios (nome, email, senha_hash, tipo) VALUES ($1, $2, $3, 'cliente') RETURNING id_usuario`,
+            [nome.trim(), emailTratado, senhaHash]
+        );
+        const id_novo_usuario = ins_usuario.rows[0].id_usuario;
+
+        // Insere (ou atualiza se telefone bater) na tabela clientes associando ao id_usuario
+        const verificaTelefone = await clientePool.query('SELECT id_cliente FROM clientes WHERE telefone = $1', [telefone.trim()]);
+        
+        if (verificaTelefone.rows.length > 0) {
+            // Se já existia a cliente baseada no telefone do estúdio físico, a gente vincula ela!
+            await clientePool.query(
+                `UPDATE clientes SET id_usuario = $1, email = $2, nome = $3 WHERE telefone = $4`,
+                [id_novo_usuario, emailTratado, nome.trim(), telefone.trim()]
+            );
+        } else {
+            // Se não, insere novo registro de cliente
+            await clientePool.query(
+                `INSERT INTO clientes (nome, telefone, email, id_usuario) VALUES ($1, $2, $3, $4)`,
+                [nome.trim(), telefone.trim(), emailTratado, id_novo_usuario]
+            );
+        }
+
+        await clientePool.query('COMMIT');
+        res.status(201).json({ mensagem: 'Conta criada com sucesso.' });
+    } catch (erro) {
+        await clientePool.query('ROLLBACK');
+        console.error('Erro no registro:', erro);
+        res.status(500).json({ erro: 'Erro interno ao realizar cadastro.' });
+    } finally {
+        clientePool.release();
+    }
+});
+
+app.get('/perfil', verificarToken, async (req, res) => {
+    try {
+        const id_usuario = req.usuario.id;
+        const result = await db.query(
+            `SELECT u.nome, u.email, c.telefone 
+             FROM usuarios u 
+             LEFT JOIN clientes c ON c.id_usuario = u.id_usuario 
+             WHERE u.id_usuario = $1`, [id_usuario]
+        );
+        if (result.rows.length === 0) return res.status(404).json({erro: 'Usuário não encontrado.'});
+        res.json(result.rows[0]);
+    } catch(err) {
+        res.status(500).json({erro: 'Erro ao buscar perfil.'});
+    }
+});
+
+app.put('/perfil', verificarToken, async (req, res) => {
+    const { nome, email, telefone, senha } = req.body;
+    const id_usuario = req.usuario.id;
+    const pool = await db.connect();
+    
+    try {
+        await pool.query('BEGIN');
+        
+        let queryUser = `UPDATE usuarios SET nome = $1, email = $2`;
+        let paramsUser = [nome, email, id_usuario];
+        
+        if (senha && senha.length >= 6) {
+            const senhaHash = await bcrypt.hash(senha, 10);
+            queryUser += `, senha_hash = $4`;
+            paramsUser.push(senhaHash);
+            queryUser += ` WHERE id_usuario = $3`;
+        } else {
+            queryUser += ` WHERE id_usuario = $3`;
+        }
+        
+        await pool.query(queryUser, paramsUser);
+        
+        const cliCheck = await pool.query('SELECT id_cliente FROM clientes WHERE id_usuario = $1', [id_usuario]);
+        if (cliCheck.rows.length > 0) {
+            await pool.query('UPDATE clientes SET nome = $1, email = $2, telefone = $3 WHERE id_usuario = $4', 
+                [nome, email, telefone || null, id_usuario]);
+        }
+        
+        await pool.query('COMMIT');
+        res.json({ mensagem: 'Perfil atualizado com sucesso!' });
+    } catch(err) {
+        await pool.query('ROLLBACK');
+        console.error(err);
+        res.status(500).json({erro: 'Erro ao atualizar perfil.'});
+    } finally {
+        pool.release();
+    }
+});
+
+
+
 app.post('/login', async (req, res) => {
     const { email, senha } = req.body;
     try {
@@ -588,6 +704,34 @@ app.post('/login', async (req, res) => {
         res.json({ usuario: { id: usuario.id_usuario, nome: usuario.nome, tipo: usuario.tipo }, token });
     } catch (erro) {
         res.status(500).json({ erro: 'Erro no login.' });
+    }
+});
+
+app.post('/recuperar', async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ erro: 'O e-mail é obrigatório.' });
+
+    try {
+        const result = await db.query('SELECT * FROM usuarios WHERE email = $1', [email.toLowerCase().trim()]);
+        if (result.rows.length === 0) {
+            // Retorna sucesso para evitar descobrir quais emails existem
+            return res.json({ mensagem: 'Se esse e-mail estiver cadastrado, a nova senha foi gerada.' });
+        }
+
+        // Gera uma senha simples padrão de sistema e salva
+        const senhaTemporaria = Math.random().toString(36).slice(-6); // 6 caracteres aleatórios
+        const senhaHash = await bcrypt.hash(senhaTemporaria, 10);
+        
+        await db.query('UPDATE usuarios SET senha_hash = $1 WHERE email = $2', [senhaHash, email.toLowerCase().trim()]);
+
+        // Simula o e-mail:
+        res.json({
+            mensagem: 'No mundo real isso iria para o seu e-mail.',
+            senhaSimulada: senhaTemporaria
+        });
+
+    } catch (e) {
+        res.status(500).json({ erro: 'Erro interno ao processar recuperação.' });
     }
 });
 

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criar Conta – Gündem</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="icon-192.svg">
+</head>
+<body>
+    <div class="app-container">
+        <h2>Criar Conta</h2>
+        <p class="subtitulo">Preencha seus dados para marcar horários</p>
+
+        <div id="statusCadastro" class="status-api" style="display: none;" role="status"></div>
+
+        <form id="formCadastro" class="form-agendamento" novalidate>
+            <label class="field-label" for="nome">Nome Completo *</label>
+            <input type="text" id="nome" name="nome" required autocomplete="name" placeholder="Seu nome">
+
+            <label class="field-label" for="email">E-mail *</label>
+            <input type="email" id="email" name="email" required autocomplete="email" placeholder="Seu e-mail de acesso">
+
+            <label class="field-label" for="telefone">Telefone (WhatsApp) *</label>
+            <input type="tel" id="telefone" name="telefone" required autocomplete="tel" placeholder="(11) 99999-9999">
+
+            <label class="field-label" for="senha">Senha *</label>
+            <input type="password" id="senha" name="senha" required autocomplete="new-password" placeholder="Mínimo de 6 caracteres">
+
+            <button type="submit" id="btnSalvarConta" style="margin-bottom: 12px;">Finalizar Cadastro</button>
+            <a href="login.html" style="display: block; text-align: center; color: var(--roxo-principal); font-size: 14px; text-decoration: none;">Já tenho cadastro! Fazer login</a>
+        </form>
+    </div>
+
+    <script>
+        (function () {
+            var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+            function apiUrl(caminho) { return API_BASE + caminho; }
+
+            var form = document.getElementById('formCadastro');
+            var statusEl = document.getElementById('statusCadastro');
+            var btnSalvar = document.getElementById('btnSalvarConta');
+
+            function setStatus(msg, tipo) {
+                statusEl.textContent = msg;
+                statusEl.className = 'status-api' + (tipo ? ' status-api--' + tipo : '');
+                statusEl.style.display = 'block';
+            }
+
+            form.addEventListener('submit', async function (ev) {
+                ev.preventDefault();
+                var nome = document.getElementById('nome').value.trim();
+                var email = document.getElementById('email').value.trim();
+                var telefone = document.getElementById('telefone').value.trim();
+                var senha = document.getElementById('senha').value.trim();
+
+                if (!nome || !email || !telefone || !senha) {
+                    setStatus('Preencha todos os campos corretamente.', 'erro');
+                    return;
+                }
+
+                if (senha.length < 6) {
+                    setStatus('A senha deve ter pelo menos 6 caracteres.', 'erro');
+                    return;
+                }
+
+                btnSalvar.disabled = true;
+                setStatus('Criando sua conta...', 'info');
+
+                try {
+                    var res = await fetch(apiUrl('/registro'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nome: nome, email: email, telefone: telefone, senha: senha })
+                    });
+                    
+                    var body = await res.json().catch(function() { return {}; });
+
+                    if (!res.ok) {
+                        throw new Error(body.erro || 'Falha ao realizar cadastro.');
+                    }
+
+                    setStatus('Conta criada com sucesso! Faça login para continuar.', 'ok');
+                    form.reset();
+
+                    setTimeout(function() {
+                        window.location.href = 'login.html';
+                    }, 2500);
+
+                } catch (e) {
+                    console.error(e);
+                    setStatus(e.message, 'erro');
+                } finally {
+                    btnSalvar.disabled = false;
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
