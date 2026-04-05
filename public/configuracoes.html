@@ -118,7 +118,10 @@
                             <td>${s.duracao_minutos} min</td>
                             <td><span class="status-tag ${s.ativo ? '' : 'status-tag--cancelado'}">${s.ativo ? 'Ativo' : 'Inativo'}</span></td>
                             <td>
-                                <button onclick='abrirModal(${JSON.stringify(s)})' style="background: var(--roxo-principal); color:white; padding: 4px 8px; font-size:12px;">Editar</button>
+                                <div style="display: flex; gap: 5px;">
+                                    <button onclick='abrirModal(${JSON.stringify(s)})' style="background: var(--roxo-principal); color:white; padding: 4px 8px; font-size:12px;">Editar</button>
+                                    <button onclick='excluirServico(${s.id_servico})' style="background: var(--rosa-destaque); color:white; padding: 4px 8px; font-size:12px; border:none; border-radius: 8px;">Excluir</button>
+                                </div>
                             </td>
                         </tr>
                     `).join('');
@@ -145,6 +148,25 @@
             };
 
             window.fecharModal = function() { modal.style.display = 'none'; };
+
+            window.excluirServico = async function(id) {
+                if(!confirm('Tem certeza que deseja excluir este serviço? Esta ação não pode ser visualmente desfeita.')) return;
+                try {
+                    setStatus('Excluindo...', 'info');
+                    const res = await fetch(apiUrl('/servicos/' + id), {
+                        method: 'DELETE',
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    const resData = await res.json();
+                    
+                    if (!res.ok) throw new Error(resData.erro || 'Erro ao processar exclusão.');
+                    
+                    setStatus(resData.mensagem, 'ok');
+                    carregarServicos();
+                } catch(e) {
+                    setStatus(e.message, 'erro');
+                }
+            };
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();

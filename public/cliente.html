@@ -16,10 +16,10 @@
         <div class="header-left">
             <h1>Gündem <span class="badge" style="background: var(--amarelo-secundario);">Cliente</span></h1>
         </div>
-        <nav>
-            <a href="agendar.html" class="btn-voltar">← Novo Agendamento</a>
-            <a href="perfil.html" class="btn-voltar" style="margin-left: 10px;">👤 Meu Perfil</a>
-            <button onclick="logout()" class="btn-cancelar" style="width: auto; padding: 0 16px; margin-left: 10px;">Sair</button>
+        <nav style="display: flex; align-items: center; gap: 15px;">
+            <a href="agendar.html" class="btn-voltar" style="position: static; margin: 0; padding: 10px 20px;">Novo Agendamento</a>
+            <a href="perfil.html" class="btn-voltar" style="position: static; margin: 0; padding: 10px 20px;">Meu Perfil</a>
+            <button onclick="logout()" class="btn-cancelar" style="position: static; width: auto; padding: 10px 20px; margin: 0; border-radius: 25px;">Sair</button>
         </nav>
     </header>
 
@@ -33,7 +33,10 @@
 
         <section class="admin-tabelas">
             <div class="tabela-container">
-                <h2>Meus Agendamentos</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 10px;">
+                    <h2 style="margin-bottom: 0;">Meus Agendamentos</h2>
+                    <input type="date" id="filtroData" style="width: auto; margin-bottom: 0; padding: 6px 12px;" title="Filtrar por data específica">
+                </div>
                 <div id="statusApi" class="status-api" role="status">Carregando seus dados...</div>
                 
                 <div class="table-responsive">
@@ -98,6 +101,38 @@
                 localStorage.clear();
                 window.location.href = 'login.html';
             };
+            
+            var tbody = document.getElementById('tbodyMeusAgendamentos');
+            var statusEl = document.getElementById('statusApi');
+            var todosAgendamentos = [];
+
+            function renderizarAgendamentos(lista) {
+                if (lista.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center">Você não possui agendamentos para esta seleção.</td></tr>';
+                } else {
+                    tbody.innerHTML = lista.map(function (a) {
+                        return `<tr>
+                            <td>${formatarData(a.data_hora_inicio)}</td>
+                            <td><strong>${escapeHtml(a.servico)}</strong></td>
+                            <td><span class="status-tag">${escapeHtml(a.status)}</span></td>
+                            <td><small>${escapeHtml(a.observacoes || '—')}</small></td>
+                        </tr>`;
+                    }).join('');
+                }
+            }
+
+            document.getElementById('filtroData').addEventListener('change', function(e) {
+                var dataBusca = e.target.value;
+                if (!dataBusca) {
+                    renderizarAgendamentos(todosAgendamentos);
+                    return;
+                }
+                var filtrados = todosAgendamentos.filter(function(a) {
+                    // a.data_hora_inicio vem como 'YYYY-MM-DDTHH...'
+                    return a.data_hora_inicio && a.data_hora_inicio.startsWith(dataBusca);
+                });
+                renderizarAgendamentos(filtrados);
+            });
 
             async function carregarMeusDados() {
                 try {
@@ -113,20 +148,9 @@
                         throw new Error('Falha ao carregar agendamentos');
                     }
 
-                    const agendamentos = await res.json();
-
-                    if (agendamentos.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="4" class="text-center">Você ainda não possui agendamentos.</td></tr>';
-                    } else {
-                        tbody.innerHTML = agendamentos.map(function (a) {
-                            return `<tr>
-                                <td>${formatarData(a.data_hora_inicio)}</td>
-                                <td><strong>${escapeHtml(a.servico)}</strong></td>
-                                <td><span class="status-tag">${escapeHtml(a.status)}</span></td>
-                                <td><small>${escapeHtml(a.observacoes || '—')}</small></td>
-                            </tr>`;
-                        }).join('');
-                    }
+                    todosAgendamentos = await res.json();
+                    renderizarAgendamentos(todosAgendamentos);
+                    
                     statusEl.style.display = 'none';
                 } catch (e) {
                     console.error(e);

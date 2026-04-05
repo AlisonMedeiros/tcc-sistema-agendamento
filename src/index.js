@@ -164,6 +164,24 @@ app.get('/servicos', async (req, res) => {
     }
 });
 
+/** Excluir um serviço */
+app.delete('/servicos/:id', verificarToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        await db.query('DELETE FROM servicos WHERE id_servico = $1', [id]);
+        res.json({ mensagem: 'Serviço excluído com sucesso!' });
+    } catch (erro) {
+        if (erro.code === '23503') { 
+            // Violação de chave estrangeira (service already used in appointments)
+            await db.query('UPDATE servicos SET ativo = false WHERE id_servico = $1', [id]);
+            res.json({ mensagem: 'Serviço inativado, pois possui histórico pendente!' });
+        } else {
+            console.error(erro);
+            res.status(500).json({ erro: 'Erro interno ao excluir.' });
+        }
+    }
+});
+
 app.get('/clientes', verificarToken, async (req, res) => {
     try {
         const resultado = await db.query(

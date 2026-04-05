@@ -27,16 +27,34 @@
         <div class="header-left">
             <h1>Gündem <span class="badge">Admin</span></h1>
         </div>
-        <nav>
-            <a href="perfil.html" class="btn-config" title="Meu Perfil">👤</a>
-            <a href="configuracoes.html" class="btn-config" title="Configurações">⚙</a>
-            <button onclick="logout()" class="btn-cancelar" style="width: auto; padding: 0 16px; margin-left: 10px;" title="Sair">Sair</button>
+        <nav style="display: flex; align-items: center; gap: 15px;">
+            <a href="perfil.html" class="btn-config" style="position: static; margin: 0; padding: 10px 20px;" title="Meu Perfil">Meu Perfil</a>
+            <a href="configuracoes.html" class="btn-config" style="position: static; margin: 0; padding: 10px 20px; font-size: 16px;" title="Avançado">⚙</a>
+            <button onclick="logout()" class="btn-cancelar" style="position: static; width: auto; padding: 10px 20px; margin: 0; border-radius: 25px;" title="Sair">Sair</button>
         </nav>
     </header>
 
+    <style>
+        .aba-painel { display: none; }
+        .aba-painel.ativa { display: block; animation: fadeIn 0.4s ease; }
+        section#admin-cards.ativa { display: grid; }
+        
+        .btn-aba { background: transparent; border: none; color: var(--roxo-principal); font-weight: bold; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 15px; border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; }
+        .btn-aba:hover { background: rgba(0,0,0,0.05); }
+        .btn-aba.ativa { border-bottom: 3px solid var(--amarelo-secundario); color: var(--amarelo-secundario); background: rgba(0,0,0,0.02); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+
+    <div style="background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); padding: 15px 40px; margin-bottom: 30px; border-radius: 20px; display: flex; gap: 20px; justify-content: center; overflow-x: auto; max-width: 1200px; margin-left: auto; margin-right: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05); position: sticky; top: 20px; z-index: 100;">
+        <button class="btn-aba ativa" onclick="abrirAba('admin-cards', this)">Resumo</button>
+        <button class="btn-aba" onclick="abrirAba('sec-clientes', this)">Clientes</button>
+        <button class="btn-aba" onclick="abrirAba('sec-faturamento', this)">Faturamento</button>
+        <button class="btn-aba" onclick="abrirAba('sec-agendamentos', this)">Agendamentos</button>
+        <button class="btn-aba" onclick="abrirAba('sec-servicos', this)">Serviços</button>
+    </div>
+
     <main class="admin-main">
-        <!-- Resumo -->
-        <section class="admin-cards">
+        <section id="admin-cards" class="admin-cards aba-painel ativa">
             <div class="admin-card">
                 <h3>📅 Agendamentos de Hoje</h3>
                 <p id="totalAgendamentos" class="card-valor">...</p>
@@ -53,7 +71,7 @@
         </section>
 
         <!-- Gráficos (Serviços x Receitas) -->
-        <section class="admin-charts" style="margin-bottom: 40px;">
+        <section id="sec-faturamento" class="admin-charts aba-painel" style="margin-bottom: 40px;">
             <div class="tabela-container">
                 <h2 style="margin-bottom: 24px;">Faturamento Anual (R$)</h2>
                 <div style="position: relative; height: 350px; width: 100%;">
@@ -62,30 +80,47 @@
             </div>
         </section>
 
-        <!-- Listagens -->
-        <section class="admin-tabelas">
+        <!-- Listagens Independentes -->
+        <section id="sec-clientes" class="aba-painel" style="margin-bottom: 30px;">
             <div class="tabela-container">
-                <div
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h2 style="margin-bottom: 0;">Todos os Agendamentos</h2>
-                        <button onclick="abrirModalPacote()" class="btn-enviar" style="width: auto; padding: 8px 16px; font-size: 14px; border-radius: 8px;">+ Novo Pacote Semanal</button>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="date" id="filtroDataAgendamento">
-                        <select id="filtroStatusAgendamento">
-                            <option value="">Todos Status</option>
-                            <option value="marcado">Marcado</option>
-                            <option value="confirmado">Confirmado</option>
-                            <option value="concluido">Concluido</option>
-                            <option value="cancelado">Cancelado</option>
-                        </select>
-                        <button onclick="carregarListaFiltro()"
-                            style="width: auto; padding: 0 16px; border-radius: 8px; background-color: var(--roxo-principal); color: white; height: 38px; font-size: 14px;">Filtrar</button>
-                        <button
-                            onclick="document.getElementById('filtroDataAgendamento').value=''; document.getElementById('filtroStatusAgendamento').value=''; carregarListaFiltro()"
-                            style="width: auto; padding: 0 16px; border-radius: 8px; background-color: #999; color: white; height: 38px; font-size: 14px; box-shadow: none;">Limpar</button>
-                    </div>
+                <h2>Clientes Cadastradas</h2>
+                <div class="table-responsive">
+                    <table class="table-admin" id="tableClientes">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>E-mail</th>
+                                <th>Telefone</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyClientes">
+                            <!-- preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-agendamentos" class="aba-painel" style="margin-bottom: 30px;">
+            <div class="tabela-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="margin-bottom: 0;">Todos os Agendamentos</h2>
+                    <button onclick="abrirModalPacote()" class="btn-enviar" style="width: auto; padding: 8px 16px; font-size: 14px; border-radius: 8px;">+ Novo Pacote Semanal</button>
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+                    <input type="date" id="filtroDataAgendamento">
+                    <select id="filtroStatusAgendamento">
+                        <option value="">Todos Status</option>
+                        <option value="marcado">Marcado</option>
+                        <option value="confirmado">Confirmado</option>
+                        <option value="concluido">Concluido</option>
+                        <option value="cancelado">Cancelado</option>
+                    </select>
+                    <button onclick="carregarListaFiltro()"
+                        style="width: auto; padding: 0 16px; border-radius: 8px; background-color: var(--roxo-principal); color: white; height: 38px; font-size: 14px;">Filtrar</button>
+                    <button
+                        onclick="document.getElementById('filtroDataAgendamento').value=''; document.getElementById('filtroStatusAgendamento').value=''; carregarListaFiltro()"
+                        style="width: auto; padding: 0 16px; border-radius: 8px; background-color: #999; color: white; height: 38px; font-size: 14px; box-shadow: none;">Limpar</button>
                 </div>
                 <div id="statusApi" class="status-api" role="status">Carregando dados...</div>
                 <div class="table-responsive">
@@ -104,7 +139,9 @@
                     </table>
                 </div>
             </div>
+        </section>
 
+        <section id="sec-servicos" class="aba-painel" style="margin-bottom: 30px;">
             <div class="tabela-container">
                 <h2>Serviços Disponíveis</h2>
                 <div class="table-responsive">
@@ -158,6 +195,21 @@
 </div>
 
     <script>
+        window.abrirAba = function(idAba, botaoClicado) {
+            document.querySelectorAll('.aba-painel').forEach(aba => aba.classList.remove('ativa'));
+            document.querySelectorAll('.btn-aba').forEach(btn => btn.classList.remove('ativa'));
+            
+            document.getElementById(idAba).classList.add('ativa');
+            if (botaoClicado) {
+                botaoClicado.classList.add('ativa');
+            }
+
+            // O Chart.js não dimensiona certo se for renderizado em display:none. Forçar resize!
+            if (idAba === 'sec-faturamento' && window.meuGrafico) {
+                setTimeout(() => { window.meuGrafico.resize(); }, 50);
+            }
+        };
+
         (function () {
             var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
             function apiUrl(caminho) { return API_BASE + caminho; }
@@ -383,6 +435,7 @@
                     }
 
                     await desenharGrafico();
+                    await carregarListaClientes();
                     setStatus('Dashboard atualizado.', 'ok');
                     setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
                 } catch (e) {
@@ -411,6 +464,31 @@
                 } catch (e) {
                     console.error(e);
                     setStatus('Erro ao atualizar.', 'erro');
+                }
+            };
+
+            window.carregarListaClientes = async function() {
+                try {
+                    const res = await fetch(apiUrl('/clientes'), {
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
+                    });
+                    if(!res.ok) throw new Error('Falha ao carregar clientes');
+                    const dados = await res.json();
+                    const tbody = document.getElementById('tbodyClientes');
+                    
+                    if(dados.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum cliente cadastrado.</td></tr>';
+                    } else {
+                        tbody.innerHTML = dados.map(function(c) {
+                            return `<tr>
+                                <td><strong>${escapeHtml(c.nome)}</strong></td>
+                                <td>${escapeHtml(c.email || '—')}</td>
+                                <td>${escapeHtml(c.telefone || '—')}</td>
+                            </tr>`;
+                        }).join('');
+                    }
+                } catch(e) {
+                    console.error('Erro clientes:', e);
                 }
             };
 
