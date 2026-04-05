@@ -28,8 +28,9 @@
             <h1>Gündem <span class="badge">Admin</span></h1>
         </div>
         <nav>
-            <a href="configuracoes.html" class="btn-config" >⚙</a>
-            <a href="index.html" class="btn-voltar">←</a>
+            <a href="perfil.html" class="btn-config" title="Meu Perfil">👤</a>
+            <a href="configuracoes.html" class="btn-config" title="Configurações">⚙</a>
+            <button onclick="logout()" class="btn-cancelar" style="width: auto; padding: 0 16px; margin-left: 10px;" title="Sair">Sair</button>
         </nav>
     </header>
 
@@ -166,6 +167,11 @@
             var tbodySv = document.getElementById('tbodyServicos');
             var totalAg = document.getElementById('totalAgendamentos');
             var totalSv = document.getElementById('totalServicos');
+
+            window.logout = function() {
+                localStorage.clear();
+                window.location.href = 'login.html';
+            };
 
             function setStatus(msg, tipo) {
                 statusEl.textContent = msg;
