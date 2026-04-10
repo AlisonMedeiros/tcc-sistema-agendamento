@@ -14,7 +14,7 @@ require('dotenv').config();
 const SALT_ROUNDS = 10;
 
 const usuarios = [
-    { nome: 'Débora Braga',     email: 'admin@gudem.com',   senha: '85651286', tipo: 'admin'   },
+    { nome: 'Débora Braga',     email: 'admin@gudem.com',   senha: '123456',   tipo: 'admin'   },
     { nome: 'Silene Malaquias', email: 'silene@email.com',  senha: '123456',   tipo: 'cliente' },
 ];
 
