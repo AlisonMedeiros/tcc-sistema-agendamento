@@ -450,3 +450,99 @@ button:active {
 .btn-cancelar {
     background: linear-gradient(135deg, #e74c3c 0%, #ff6b6b 100%);
 }
+/* =========================================
+   11. Menu Lateral (Sidebar) Responsivo
+   ========================================= */
+
+.btn-menu-lateral {
+    display: none; /* Escondido no PC */
+    background: transparent;
+    border: none;
+    font-size: 26px;
+    color: var(--roxo-principal);
+    cursor: pointer;
+    margin-right: 15px;
+    padding: 0;
+}
+
+/* Fundo escuro que aparece atrás do menu */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.4);
+    z-index: 998;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+/* A Gaveta do Menu */
+.sidebar-mobile {
+    position: fixed;
+    top: 0; left: -300px; width: 280px; height: 100vh;
+    background: var(--branco);
+    z-index: 999;
+    box-shadow: 4px 0 25px rgba(0,0,0,0.15);
+    transition: left 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.sidebar-mobile.aberto { left: 0; }
+.sidebar-overlay.aberto { display: block; opacity: 1; }
+
+.sidebar-header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    background: var(--fundo-claro);
+}
+
+.btn-fechar-sidebar {
+    background: transparent; border: none; font-size: 22px; cursor: pointer; color: #888;
+}
+
+.sidebar-content { padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+
+.sidebar-titulo {
+    font-size: 13px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; font-weight: 800; margin-bottom: 5px;
+}
+
+.sidebar-mobile .btn-aba {
+    text-align: left; padding: 12px 15px; border-bottom: none; border-radius: 8px; font-size: 16px;
+}
+.sidebar-mobile .btn-aba.ativa {
+    background: var(--fundo-claro); border-left: 4px solid var(--amarelo-secundario); color: var(--roxo-principal);
+}
+
+.btn-sidebar-link {
+    text-decoration: none; color: var(--texto-escuro); font-weight: 600; padding: 12px 15px; border-radius: 8px; text-align: left; background: transparent; border: none; font-size: 16px; cursor: pointer;
+}
+.btn-sidebar-link:hover { background: #f9f9f9; }
+.btn-sair-sidebar { color: var(--rosa-destaque); font-weight: 700; }
+
+/* REGRAS PARA O CELULAR */
+@media (max-width: 768px) {
+    .btn-menu-lateral { display: block; } /* Mostra o sanduíche */
+    .nav-desktop { display: none !important; } /* Esconde abas e botões do topo */
+    .admin-header h1 { font-size: 22px; }
+    .admin-header { padding: 15px 20px; border-radius: 0 0 20px 20px; margin-bottom: 20px; }
+}
+
+/* REGRAS PARA O PC */
+@media (min-width: 769px) {
+    .menu-abas-container {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        padding: 15px 40px;
+        margin-bottom: 30px;
+        border-radius: 20px;
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+}

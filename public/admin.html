@@ -24,15 +24,46 @@
 
 <body class="admin-body">
     <header class="admin-header">
-        <div class="header-left">
+        <div class="header-left" style="display: flex; align-items: center;">
+            <button onclick="toggleMenuMobile()" class="btn-menu-lateral">☰</button>
             <h1>Gündem <span class="badge">Admin</span></h1>
         </div>
-        <nav style="display: flex; align-items: center; gap: 15px;">
+        
+        <nav class="nav-desktop">
             <a href="perfil.html" class="btn-config" style="position: static; margin: 0; padding: 10px 20px;" title="Meu Perfil">Meu Perfil</a>
             <a href="configuracoes.html" class="btn-config" style="position: static; margin: 0; padding: 10px 20px; font-size: 16px;" title="Avançado">⚙</a>
             <button onclick="logout()" class="btn-cancelar" style="position: static; width: auto; padding: 10px 20px; margin: 0; border-radius: 25px;" title="Sair">Sair</button>
         </nav>
     </header>
+
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="fecharMenuMobile()"></div>
+    <div id="sidebarMobile" class="sidebar-mobile">
+        <div class="sidebar-header">
+            <h2 style="margin: 0; font-size: 18px;">Menu</h2>
+            <button onclick="fecharMenuMobile()" class="btn-fechar-sidebar">✖</button>
+        </div>
+        <div class="sidebar-content">
+            <p class="sidebar-titulo">Navegação</p>
+            <button class="btn-aba ativa" onclick="abrirAba('admin-cards', this); fecharMenuMobile()">Resumo</button>
+            <button class="btn-aba" onclick="abrirAba('sec-clientes', this); fecharMenuMobile()">Clientes</button>
+            <button class="btn-aba" onclick="abrirAba('sec-faturamento', this); fecharMenuMobile()">Faturamento</button>
+            <button class="btn-aba" onclick="abrirAba('sec-agendamentos', this); fecharMenuMobile()">Agendamentos</button>
+            <button class="btn-aba" onclick="abrirAba('sec-servicos', this); fecharMenuMobile()">Serviços</button>
+
+            <p class="sidebar-titulo" style="margin-top: 20px;">Conta</p>
+            <a href="perfil.html" class="btn-sidebar-link">Meu Perfil</a>
+            <a href="configuracoes.html" class="btn-sidebar-link">Configurações</a>
+            <button onclick="logout()" class="btn-sidebar-link btn-sair-sidebar">Sair da Conta</button>
+        </div>
+    </div>
+
+    <div id="menuAbas" class="menu-abas-container nav-desktop">
+        <button class="btn-aba ativa" onclick="abrirAba('admin-cards', this)">Resumo</button>
+        <button class="btn-aba" onclick="abrirAba('sec-clientes', this)">Clientes</button>
+        <button class="btn-aba" onclick="abrirAba('sec-faturamento', this)">Faturamento</button>
+        <button class="btn-aba" onclick="abrirAba('sec-agendamentos', this)">Agendamentos</button>
+        <button class="btn-aba" onclick="abrirAba('sec-servicos', this)">Serviços</button>
+    </div>
 
     <style>
         .aba-painel { display: none; }
@@ -44,14 +75,6 @@
         .btn-aba.ativa { border-bottom: 3px solid var(--amarelo-secundario); color: var(--amarelo-secundario); background: rgba(0,0,0,0.02); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
-
-    <div style="background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); padding: 15px 40px; margin-bottom: 30px; border-radius: 20px; display: flex; gap: 20px; justify-content: center; overflow-x: auto; max-width: 1200px; margin-left: auto; margin-right: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05); position: sticky; top: 20px; z-index: 100;">
-        <button class="btn-aba ativa" onclick="abrirAba('admin-cards', this)">Resumo</button>
-        <button class="btn-aba" onclick="abrirAba('sec-clientes', this)">Clientes</button>
-        <button class="btn-aba" onclick="abrirAba('sec-faturamento', this)">Faturamento</button>
-        <button class="btn-aba" onclick="abrirAba('sec-agendamentos', this)">Agendamentos</button>
-        <button class="btn-aba" onclick="abrirAba('sec-servicos', this)">Serviços</button>
-    </div>
 
     <main class="admin-main">
         <section id="admin-cards" class="admin-cards aba-painel ativa">
@@ -145,6 +168,7 @@
             <div class="tabela-container">
                 <h2>Serviços Disponíveis</h2>
                 <div class="table-responsive">
+                    <a href="configuracoes.html" class="btn-config" style="position: absolute; top: 20px; right: 30px; margin: 0; padding: 10px 20px; font-size: 16px;" title="Avançado">+</a>
                     <table class="table-admin" id="tableServicos">
                         <thead>
                             <tr>
@@ -544,6 +568,16 @@
                     console.warn('Auto-refresh falhou silenciosamente:', e);
                 }
             }
+            //Script pro botão sanduiche
+        window.toggleMenuMobile = function() {
+            document.getElementById('sidebarMobile').classList.add('aberto');
+            document.getElementById('sidebarOverlay').classList.add('aberto');
+        };
+
+        window.fecharMenuMobile = function() {
+            document.getElementById('sidebarMobile').classList.remove('aberto');
+            document.getElementById('sidebarOverlay').classList.remove('aberto');
+        };
                     // ==========================================
         // LÓGICA DO PACOTE SEMANAL
         // ==========================================
