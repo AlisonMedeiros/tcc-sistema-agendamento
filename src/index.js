@@ -278,7 +278,7 @@ app.get('/agendamentos', verificarToken, async (req, res) => {
             params.push(dataFiltro);
         }
 
-        query += ` ORDER BY a.data_hora_inicio DESC`;
+        query += ` ORDER BY a.data_hora_inicio ASC`;
         
         params.push(limite);
         query += ` LIMIT $${params.length}`;
@@ -551,6 +551,29 @@ app.put('/agendamentos/:id/status', verificarToken, async (req, res) => {
                 'DELETE FROM lancamentos_financeiros WHERE id_agendamento = $1',
                 [id]
             );
+        } else if (status === 'concluido' || status === 'confirmado') {
+            // Verifica se já existe um lançamento financeiro para não duplicar
+            const checkFin = await client.query(
+                'SELECT id_lancamento FROM lancamentos_financeiros WHERE id_agendamento = $1',
+                [id]
+            );
+            
+            if (checkFin.rows.length === 0) {
+                // Busca o preço do serviço associado a este agendamento
+                const srv = await client.query(
+                    'SELECT s.preco_padrao FROM agendamentos a JOIN servicos s ON a.id_servico = s.id_servico WHERE a.id_agendamento = $1',
+                    [id]
+                );
+                
+                if (srv.rows.length > 0) {
+                    const preco = srv.rows[0].preco_padrao;
+                    await client.query(
+                        `INSERT INTO lancamentos_financeiros (id_agendamento, tipo, descricao, valor, categoria) 
+                         VALUES ($1, 'entrada', $2, $3, 'Serviço')`,
+                        [id, `Agendamento #${id}`, preco]
+                    );
+                }
+            }
         }
 
         await client.query('COMMIT');
