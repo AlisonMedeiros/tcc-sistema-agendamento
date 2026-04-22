@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login – Gündem</title>
+    <title>Login Admin – Gündem</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
@@ -11,7 +11,8 @@
 </head>
 <body>
     <div class="app-container">
-        <h2>Gündem</h2>
+        <h2>Gündem Admin</h2>
+        <p class="subtitulo">Acesso restrito para a profissional</p>
 
         <div id="statusLogin" class="status-api" style="display: none;" role="status"></div>
 
@@ -23,11 +24,10 @@
             <input type="password" id="senha" name="senha" required autocomplete="current-password" placeholder="Sua senha secreta">
 
             <button type="submit" id="btnEntrar" style="margin-bottom: 15px;">Entrar</button>
-            <button type="button" id="btnCriarConta" style="background-color: var(--amarelo-secundario); color: #fff; margin-bottom: 10px;">Criar Conta</button>
             
             <div style="text-align: center; margin-top: 10px; display: flex; flex-direction: column; gap: 15px;">
                 <a href="recuperar.html" style="font-size: 14px; color: var(--roxo-principal); text-decoration: none; font-weight: bold;">Esqueci minha senha</a>
-                <a href="login-admin.html" style="font-size: 14px; color: var(--roxo-principal); text-decoration: none; font-weight: bold;">Acesso para Administrador</a>
+                <a href="login.html" style="font-size: 14px; color: var(--roxo-principal); text-decoration: none; font-weight: bold;">Acesso para Clientes</a>
             </div>
         </form>
     </div>
@@ -73,6 +73,10 @@
                         throw new Error(body.erro || 'Falha ao autenticar.');
                     }
 
+                    if (body.usuario.tipo !== 'admin') {
+                        throw new Error('Acesso negado. Esta área é exclusiva para a profissional.');
+                    }
+
                     setStatus('Bem-vindo, ' + body.usuario.nome + '!', 'ok');
                     
                     localStorage.setItem('gundem_user_id', body.usuario.id);
@@ -81,11 +85,7 @@
                     localStorage.setItem('gundem_token', body.token);
 
                     setTimeout(function() {
-                        if (body.usuario.tipo === 'admin') {
-                            window.location.href = 'admin.html';
-                        } else {
-                            window.location.href = 'cliente.html';
-                        }
+                        window.location.href = 'admin.html';
                     }, 1000);
 
                 } catch (e) {
@@ -94,10 +94,6 @@
                 } finally {
                     btnEntrar.disabled = false;
                 }
-            });
-
-            document.getElementById('btnCriarConta').addEventListener('click', function() {
-                window.location.href = 'cadastro.html';
             });
         })();
     </script>

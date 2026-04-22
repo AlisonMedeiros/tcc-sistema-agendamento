@@ -755,24 +755,38 @@ app.post('/recuperar', async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM usuarios WHERE email = $1', [email.toLowerCase().trim()]);
         if (result.rows.length === 0) {
-            // Retorna sucesso para evitar descobrir quais emails existem
-            return res.json({ mensagem: 'Se esse e-mail estiver cadastrado, a nova senha foi gerada.' });
+            return res.json({ mensagem: 'Se esse e-mail estiver cadastrado, o link de recuperação foi gerado.' });
         }
 
-        // Gera uma senha simples padrão de sistema e salva
-        const senhaTemporaria = Math.random().toString(36).slice(-6); // 6 caracteres aleatórios
-        const senhaHash = await bcrypt.hash(senhaTemporaria, 10);
-        
-        await db.query('UPDATE usuarios SET senha_hash = $1 WHERE email = $2', [senhaHash, email.toLowerCase().trim()]);
+        const tokenRecuperacao = jwt.sign({ email: email.toLowerCase().trim() }, SECRET_KEY, { expiresIn: '15m' });
 
-        // Simula o e-mail:
         res.json({
             mensagem: 'No mundo real isso iria para o seu e-mail.',
-            senhaSimulada: senhaTemporaria
+            linkSimulado: `/nova-senha.html?token=${tokenRecuperacao}`
         });
 
     } catch (e) {
         res.status(500).json({ erro: 'Erro interno ao processar recuperação.' });
+    }
+});
+
+app.post('/resetar-senha', async (req, res) => {
+    const { token, novaSenha } = req.body;
+    
+    if (!token || !novaSenha || novaSenha.length < 6) {
+        return res.status(400).json({ erro: 'Token inválido ou senha muito curta (mínimo 6 caracteres).' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, SECRET_KEY);
+        const email = decoded.email;
+
+        const senhaHash = await bcrypt.hash(novaSenha, 10);
+        await db.query('UPDATE usuarios SET senha_hash = $1 WHERE email = $2', [senhaHash, email]);
+
+        res.json({ mensagem: 'Senha atualizada com sucesso!' });
+    } catch (e) {
+        return res.status(400).json({ erro: 'Token inválido ou expirado. Solicite a recuperação novamente.' });
     }
 });
 

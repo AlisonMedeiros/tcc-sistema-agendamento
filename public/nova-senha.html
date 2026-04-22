@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova Senha – Gündem</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+</head>
+<body>
+    <div class="app-container">
+        <h2>Criar Nova Senha</h2>
+        <p class="subtitulo">Digite sua nova senha abaixo.</p>
+
+        <div id="statusReset" class="status-api" style="display: none;" role="status"></div>
+
+        <form id="formReset" class="form-agendamento" novalidate>
+            <label class="field-label" for="novaSenha">Nova Senha</label>
+            <input type="password" id="novaSenha" required placeholder="Mínimo 6 caracteres">
+
+            <label class="field-label" for="confirmaSenha">Confirmar Nova Senha</label>
+            <input type="password" id="confirmaSenha" required placeholder="Repita a nova senha">
+
+            <button type="submit" id="btnResetar">Atualizar Senha</button>
+            <a href="login.html" style="display: block; text-align: center; color: var(--roxo-principal); font-size: 14px; text-decoration: none; margin-top: 15px;">Voltar ao Login</a>
+        </form>
+    </div>
+
+    <script>
+        (function () {
+            var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+            function apiUrl(p) { return API_BASE + p; }
+
+            var urlParams = new URLSearchParams(window.location.search);
+            var token = urlParams.get('token');
+
+            var form = document.getElementById('formReset');
+            var statusEl = document.getElementById('statusReset');
+            var btnResetar = document.getElementById('btnResetar');
+
+            function setStatus(msg, tipoMsg) {
+                statusEl.textContent = msg;
+                statusEl.className = 'status-api' + (tipoMsg ? ' status-api--' + tipoMsg : '');
+                statusEl.style.display = 'block';
+            }
+
+            if (!token) {
+                setStatus('Link inválido ou ausente.', 'erro');
+                btnResetar.disabled = true;
+                return;
+            }
+
+            form.addEventListener('submit', async function (ev) {
+                ev.preventDefault();
+                var novaSenha = document.getElementById('novaSenha').value.trim();
+                var confirmaSenha = document.getElementById('confirmaSenha').value.trim();
+                
+                if (!novaSenha || novaSenha.length < 6) {
+                    setStatus('A senha deve ter pelo menos 6 caracteres.', 'erro');
+                    return;
+                }
+
+                if (novaSenha !== confirmaSenha) {
+                    setStatus('As senhas não coincidem.', 'erro');
+                    return;
+                }
+
+                btnResetar.disabled = true;
+                setStatus('Atualizando senha...', 'info');
+
+                try {
+                    var res = await fetch(apiUrl('/resetar-senha'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: token, novaSenha: novaSenha })
+                    });
+                    
+                    var body = await res.json().catch(function() { return {}; });
+
+                    if (!res.ok) {
+                        throw new Error(body.erro || 'Falha ao atualizar a senha.');
+                    }
+
+                    setStatus('✔ ' + body.mensagem, 'ok');
+                    
+                    setTimeout(function() {
+                        window.location.href = 'login.html';
+                    }, 2000);
+
+                } catch (e) {
+                    setStatus(e.message, 'erro');
+                    btnResetar.disabled = false;
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
