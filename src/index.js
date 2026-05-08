@@ -372,7 +372,21 @@ app.post('/agendar', verificarToken, async (req, res) => {
         return res.status(400).json({ erro: 'Campos obrigatórios ausentes.' });
     }
 
-    const inicio = new Date(data_hora_inicio);
+    // 1. AJUSTE DE FUSO HORÁRIO:
+    // Se a data vier do HTML (ex: 2026-05-10T10:00), forçamos o fuso de Brasília (-03:00)
+    let strData = String(data_hora_inicio);
+    if (!strData.includes('Z') && !strData.includes('-03:00')) {
+        // Se tem 16 caracteres (YYYY-MM-DDTHH:mm), adiciona os segundos e o fuso
+        if (strData.length === 16) strData += ':00'; 
+        strData += '-03:00';
+    }
+    const inicio = new Date(strData);
+
+    // 2. TRAVA DE VIAGEM NO TEMPO:
+    const agora = new Date();
+    if (inicio < agora) {
+        return res.status(400).json({ erro: 'Máquina do tempo bloqueada: Não é possível agendar em horários que já passaram.' });
+    }
     const client = await db.connect();
     try {
         await client.query('BEGIN');
