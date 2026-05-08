@@ -12,6 +12,10 @@
 <body>
     <div class="app-container">
         <h2>Gündem</h2>
+        <div id="boxInstalarApp" style="display: none; background: var(--roxo-principal); color: #fff; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <span style="font-size: 20px; vertical-align: middle; margin-right: 8px;">📲</span>
+            <span style="font-weight: bold;">Instalar aplicativo no celular</span>
+        </div>
 
         <div id="statusLogin" class="status-api" style="display: none;" role="status"></div>
 
@@ -100,6 +104,34 @@
                 window.location.href = 'cadastro.html';
             });
         })();
+        // --- LÓGICA DE INSTALAÇÃO DO PWA ---
+            var eventoInstalacao;
+            var boxInstalarApp = document.getElementById('boxInstalarApp');
+
+            // 1. O navegador avisa que o PWA está pronto para ser instalado
+            window.addEventListener('beforeinstallprompt', function(e) {
+                // Impede o Chrome de mostrar o mini-alerta padrão imediatamente
+                e.preventDefault();
+                // Guarda o evento para quando clicar no botão
+                eventoInstalacao = e;
+                // Botão aparece
+                boxInstalarApp.style.display = 'block';
+            });
+
+            boxInstalarApp.addEventListener('click', async function() {
+                if (!eventoInstalacao) return;
+                
+                // Dispara o alerta de instalação nativo do telemóvel
+                eventoInstalacao.prompt();
+                
+                var escolha = await eventoInstalacao.userChoice;
+                if (escolha.outcome === 'accepted') {
+                    console.log('Utilizador aceitou a instalação do PWA');
+                    // Esconde o botão, quando já foi instalado
+                    boxInstalarApp.style.display = 'none';
+                }
+                eventoInstalacao = null; // Limpa a variável
+            });
     </script>
 </body>
 </html>
