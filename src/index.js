@@ -98,6 +98,15 @@ app.put('/servicos/:id', verificarToken, async (req, res) => {
     }
 });
 
+    if (!nome || preco_padrao === undefined || !duracao_minutos) {
+        return res.status(400).json({ erro: 'Nome, preço e duração são obrigatórios.' });
+    }
+
+    // NOVA TRAVA: Bloqueia valores financeiros negativos
+    if (Number(preco_padrao) < 0) {
+        return res.status(400).json({ erro: 'O preço do serviço não pode ser negativo.' });
+    }
+
 /**
  * Dashboard: Agendamentos de Hoje com breakdown por status
  */
