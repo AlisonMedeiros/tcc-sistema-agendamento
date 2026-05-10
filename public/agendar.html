@@ -43,7 +43,6 @@
         <div id="statusAgendamento" class="status-api" role="status" style="display:none;"></div>
 
         <form id="formAgendamento" class="form-agendamento" novalidate>
-            <!-- (Apenas admin verá estes campos, via JS) -->
             <div id="blocoAdmin" style="display: none; background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                 <p style="font-size: 14px; font-weight: bold; margin-bottom: 8px; color: var(--roxo-principal);">Modo Admin - Dados da Cliente</p>
                 <label class="field-label">Nome da Cliente *</label>
@@ -75,9 +74,56 @@
             <button type="submit" id="btnEnviar">Confirmar agendamento</button>
         </form>
 
+        <div id="boxPagamentoPix" style="display: none; text-align: center; background: #fff; padding: 20px; border: 2px dashed var(--roxo-principal); border-radius: 10px; margin-top: 10px;">
+            <h3 style="color: var(--roxo-principal); margin-bottom: 10px;">🎉 Agendamento Confirmado!</h3>
+            <p style="font-size: 14px; margin-bottom: 15px;">Para garantir o seu horário, realize o pagamento via PIX:</p>
+            
+            <img src="/qr-pix-debora.png" alt="QR Code do PIX" style="max-width: 200px; border-radius: 10px; margin: 0 auto 15px auto; display: block;">
+            
+            <p style="margin-bottom: 15px;"><strong>Chave PIX (Telefone):</strong> <br><span style="font-size: 1.1rem; color: #333;">(11) 99999-9999</span></p>
+            
+            <button type="button" onclick="copiarChavePix()" style="background-color: #28a745; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 15px; width: 100%;">
+                📋 Copiar PIX "Copia e Cola"
+            </button>
+
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px; background: #f9f9f9; padding: 10px; border-radius: 5px;">
+                Após o pagamento, não se esqueça de enviar o comprovante no nosso WhatsApp!
+            </p>
+            
+            <button type="button" onclick="fecharBoxPix()" style="background-color: var(--roxo-secundario); color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
+                Fechar e Voltar ao Painel
+            </button>
+        </div>
+
     </div>
 
     <script>
+        // --- FUNÇÕES GLOBAIS PARA O PIX ---
+        function exibirCobrancaPix() {
+            document.getElementById('formAgendamento').style.display = 'none';
+            document.getElementById('statusAgendamento').style.display = 'none';
+            document.getElementById('boxPagamentoPix').style.display = 'block';
+            window.scrollTo(0, 0); // Sobe a tela para mostrar o QR Code
+        }
+
+        function fecharBoxPix() {
+            const tipoUsuario = localStorage.getItem('gundem_user_tipo');
+            window.location.href = (tipoUsuario === 'admin') ? 'admin.html' : 'cliente.html';
+        }
+
+        function copiarChavePix() {
+            // Substituir a string abaixo pelo código PIX gerado no app do banco
+            const codigoPixCopiaECola = "00020126360014br.gov.bcb.pix0114+55119999999995204000053039865802BR5912Debora Braga6009Sao Paulo62070503***63041A2B"; 
+            
+            navigator.clipboard.writeText(codigoPixCopiaECola).then(function() {
+                alert("Código PIX Copia e Cola copiado com sucesso! Abra o app do seu banco e cole.");
+            }).catch(function(err) {
+                console.error('Erro ao copiar chave: ', err);
+                alert("Não foi possível copiar automaticamente. Use a chave de telefone.");
+            });
+        }
+        // ----------------------------------
+
         (function () {
             const token = localStorage.getItem('gundem_token');
             const tipo = localStorage.getItem('gundem_user_tipo');
@@ -187,9 +233,21 @@
                     statusEl.className = 'status-api status-api--ok';
                     document.getElementById('formAgendamento').reset();
 
-                    setTimeout(function () {
-                        window.location.href = (tipo === 'admin') ? 'admin.html' : 'cliente.html';
-                    }, 2000);
+                    // --- NOVA LÓGICA DE REDIRECIONAMENTO OU PIX ---
+                    var selectPagamento = document.getElementById('pagamento');
+                    var nomePagamentoSelecionado = selectPagamento.options[selectPagamento.selectedIndex] ? selectPagamento.options[selectPagamento.selectedIndex].text.toLowerCase() : '';
+
+                    if (nomePagamentoSelecionado.includes('pix')) {
+                        // Se escolheu PIX, mostra a tela do QR Code e não redireciona!
+                        exibirCobrancaPix();
+                    } else {
+                        // Se foi outra forma, faz o redirecionamento automático em 2 segundos
+                        setTimeout(function () {
+                            window.location.href = (tipo === 'admin') ? 'admin.html' : 'cliente.html';
+                        }, 2000);
+                    }
+                    // ----------------------------------------------
+
                 } catch (e) {
                     statusEl.textContent = e.message || 'Erro ao agendar.';
                     statusEl.className = 'status-api status-api--erro';
