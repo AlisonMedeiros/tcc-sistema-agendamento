@@ -2,6 +2,7 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const db = require('./db');
+const { enviarMensagem } = require('./whatsapp-client');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -97,15 +98,6 @@ app.put('/servicos/:id', verificarToken, async (req, res) => {
         res.status(500).json({ erro: 'Erro interno ao atualizar o serviço.' });
     }
 });
-
-    if (!nome || preco_padrao === undefined || !duracao_minutos) {
-        return res.status(400).json({ erro: 'Nome, preço e duração são obrigatórios.' });
-    }
-
-    // NOVA TRAVA: Bloqueia valores financeiros negativos
-    if (Number(preco_padrao) < 0) {
-        return res.status(400).json({ erro: 'O preço do serviço não pode ser negativo.' });
-    }
 
 /**
  * Dashboard: Agendamentos de Hoje com breakdown por status
@@ -471,6 +463,32 @@ app.post('/agendar', verificarToken, async (req, res) => {
         }
 
         await client.query('COMMIT');
+        
+        // --- INTEGRAÇÃO WHATSAPP ---
+        // Busca o número de telefone do cliente salvo para enviar a notificação
+        try {
+            const cliData = await db.query('SELECT nome, telefone FROM clientes WHERE id_cliente = $1', [id_cliente]);
+            const srvData = await db.query('SELECT nome FROM servicos WHERE id_servico = $1', [id_servico]);
+            
+            if (cliData.rows.length > 0 && cliData.rows[0].telefone) {
+                const nomeCli = cliData.rows[0].nome.split(' ')[0]; // Pega só o primeiro nome
+                const nomeSrv = srvData.rows.length > 0 ? srvData.rows[0].nome : 'Serviço';
+                
+                // Formata a data e hora para exibição na mensagem
+                const dataFormatada = inicio.toLocaleString('pt-BR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+
+                const textoMensagem = `Olá ${nomeCli}! Seu agendamento de *${nomeSrv}* para ${dataFormatada} foi confirmado com sucesso. Te esperamos no salão Güdem!`;
+                
+                enviarMensagem(cliData.rows[0].telefone, textoMensagem);
+            }
+        } catch (errWhatsApp) {
+            console.error('Erro ao tentar enviar WhatsApp pós agendamento:', errWhatsApp);
+        }
+        // -----------------------------
+
         res.status(201).json({ mensagem: 'Agendamento realizado.', agendamento: ag.rows[0] });
     } catch (erro) {
         await client.query('ROLLBACK');
