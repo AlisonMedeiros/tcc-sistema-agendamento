@@ -39,7 +39,7 @@
                 </div>
                 <div id="statusApi" class="status-api" role="status">Carregando seus dados...</div>
                 
-                <div class="table-responsive">
+                <div class="table-responsive tabela-responsiva">
                     <table class="table-admin" id="tableMeusAgendamentos">
                         <thead>
                             <tr>
@@ -50,10 +50,13 @@
                             </tr>
                         </thead>
                         <tbody id="tbodyMeusAgendamentos">
-                            <!-- preenchido via JS -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
+
+                <div id="listaCardsAgendamentosMobile" class="lista-cards-mobile">
+                    </div>
+
             </div>
         </section>
     </main>
@@ -76,6 +79,7 @@
 
             var statusEl = document.getElementById('statusApi');
             var tbody = document.getElementById('tbodyMeusAgendamentos');
+            var cardsContainer = document.getElementById('listaCardsAgendamentosMobile'); // Novo container mobile
 
             function setStatus(msg, tipo) {
                 statusEl.textContent = msg;
@@ -102,14 +106,15 @@
                 window.location.href = 'login.html';
             };
             
-            var tbody = document.getElementById('tbodyMeusAgendamentos');
-            var statusEl = document.getElementById('statusApi');
             var todosAgendamentos = [];
 
+            // NOVA FUNÇÃO RENDERIZAR (PREENCHE TABELA E CARDS)
             function renderizarAgendamentos(lista) {
                 if (lista.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="4" class="text-center">Você não possui agendamentos para esta seleção.</td></tr>';
+                    cardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Você não possui agendamentos para esta seleção.</div>';
                 } else {
+                    // 1. Renderiza a Tabela (Desktop)
                     tbody.innerHTML = lista.map(function (a) {
                         return `<tr>
                             <td>${formatarData(a.data_hora_inicio)}</td>
@@ -117,6 +122,36 @@
                             <td><span class="status-tag">${escapeHtml(a.status)}</span></td>
                             <td><small>${escapeHtml(a.observacoes || '—')}</small></td>
                         </tr>`;
+                    }).join('');
+
+                    // 2. Renderiza os Cards (Mobile)
+                    cardsContainer.innerHTML = lista.map(function (a) {
+                        // Define uma cor baseada no status
+                        var corStatus = 'var(--roxo-principal)';
+                        var st = a.status.toLowerCase();
+                        if(st === 'cancelado') corStatus = 'red';
+                        if(st === 'concluido') corStatus = 'green';
+
+                        return `
+                        <div class="card-agendamento-mobile">
+                            <div class="card-mobile__linha">
+                                <span class="card-mobile__label">Data e Hora:</span>
+                                <span class="card-mobile__valor">${formatarData(a.data_hora_inicio)}</span>
+                            </div>
+                            <div class="card-mobile__linha">
+                                <span class="card-mobile__label">Serviço:</span>
+                                <span class="card-mobile__valor"><strong>${escapeHtml(a.servico)}</strong></span>
+                            </div>
+                            <div class="card-mobile__linha">
+                                <span class="card-mobile__label">Status:</span>
+                                <span class="card-mobile__valor" style="color: ${corStatus}; font-weight: bold; text-transform: capitalize;">${escapeHtml(a.status)}</span>
+                            </div>
+                            ${a.observacoes ? `
+                            <div class="card-mobile__linha" style="margin-top: 5px; border-top: 1px solid #eee; padding-top: 5px;">
+                                <span class="card-mobile__label" style="font-size: 12px;">Obs:</span>
+                                <span class="card-mobile__valor" style="font-size: 12px; font-weight: normal; text-align: right;">${escapeHtml(a.observacoes)}</span>
+                            </div>` : ''}
+                        </div>`;
                     }).join('');
                 }
             }
@@ -128,7 +163,6 @@
                     return;
                 }
                 var filtrados = todosAgendamentos.filter(function(a) {
-                    // a.data_hora_inicio vem como 'YYYY-MM-DDTHH...'
                     return a.data_hora_inicio && a.data_hora_inicio.startsWith(dataBusca);
                 });
                 renderizarAgendamentos(filtrados);

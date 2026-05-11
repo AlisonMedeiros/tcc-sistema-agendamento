@@ -546,3 +546,54 @@ button:active {
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     }
 }
+
+/* --- RESPONSIVIDADE PARA TABELAS (MOBILE CARDS) --- */
+.lista-cards-mobile {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    /* Esconde a tabela no celular */
+    .tabela-responsiva {
+        display: none !important;
+    }
+    
+    /* Mostra os cards */
+    .lista-cards-mobile {
+        display: block;
+    }
+    
+    /* Estilo do Card individual */
+    .card-agendamento-mobile {
+        background: #fff;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border-left: 5px solid var(--roxo-principal);
+    }
+    
+    .card-mobile__linha {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .card-mobile__linha:last-child {
+        margin-bottom: 0;
+    }
+    
+    .card-mobile__label {
+        font-weight: bold;
+        color: #888;
+        font-size: 13px;
+    }
+    
+    .card-mobile__valor {
+        text-align: right;
+        font-weight: 500;
+        color: #333;
+    }
+}
