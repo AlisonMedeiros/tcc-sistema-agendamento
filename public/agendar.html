@@ -27,7 +27,6 @@
             color: white; border-radius: 8px; padding: 6px 12px; font-size: 0.8rem;
             cursor: pointer; text-decoration: none;
         }
-        /* Ajuste fino para a tela de agendamento caber perfeitamente no novo layout */
         .admin-main .app-container {
             margin-top: 15px;
             box-shadow: none;
@@ -39,6 +38,10 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        /* Transição suave para o botão */
+        #btnEnviar {
+            transition: all 0.3s ease;
         }
     </style>
 </head>
@@ -166,6 +169,7 @@
         function exibirCobrancaPix() {
             document.getElementById('formAgendamento').style.display = 'none';
             document.getElementById('statusAgendamento').style.display = 'none';
+            document.querySelector('.saudacao').style.display = 'none'; // Esconde o cabeçalho roxo também
             document.getElementById('boxPagamentoPix').style.display = 'block';
             window.scrollTo(0, 0); 
         }
@@ -198,19 +202,17 @@
             var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
             function apiUrl(p) { return API_BASE + p; }
 
-            // Configura a tela com base no tipo (Admin ou Cliente)
             const badge = document.getElementById('headerBadge');
             if (tipo === 'admin') {
                 document.getElementById('blocoAdmin').style.display = 'block';
                 badge.textContent = 'Admin';
-                badge.style.background = '#FF6B6B'; // Cor vermelhinha de admin
+                badge.style.background = '#FF6B6B';
             } else {
                 document.getElementById('saudacaoNome').textContent = 'Agendar, ' + nomeUsuario.split(' ')[0] + '!';
                 badge.textContent = 'Cliente';
                 badge.style.background = 'var(--amarelo-secundario)';
             }
 
-            // Carregar selects
             async function carregarSelects() {
                 var statusEl = document.getElementById('statusAgendamento');
                 try {
@@ -242,7 +244,21 @@
 
             carregarSelects();
 
-            // Envio
+            // --- NOVA UX: MUDAR BOTÃO AO SELECIONAR PIX ---
+            document.getElementById('pagamento').addEventListener('change', function(e) {
+                var btn = document.getElementById('btnEnviar');
+                var textoSelecionado = e.target.options[e.target.selectedIndex].text.toLowerCase();
+                
+                if (textoSelecionado.includes('pix') || textoSelecionado.includes('qr code')) {
+                    btn.textContent = 'Confirmar e Pagar com PIX 📱';
+                    btn.style.backgroundColor = '#28a745'; // Cor verde de pagamento
+                } else {
+                    btn.textContent = 'Confirmar agendamento';
+                    btn.style.backgroundColor = 'var(--roxo-principal)';
+                }
+            });
+
+            // --- ENVIO DO FORMULÁRIO ---
             document.getElementById('formAgendamento').addEventListener('submit', async function (ev) {
                 ev.preventDefault();
                 var statusEl = document.getElementById('statusAgendamento');
@@ -276,6 +292,7 @@
                 }
 
                 var btnEnviar = document.getElementById('btnEnviar');
+                var textoOriginalBtn = btnEnviar.textContent;
                 btnEnviar.disabled = true;
                 statusEl.textContent = 'Enviando…';
                 statusEl.className = 'status-api';
@@ -297,10 +314,13 @@
                     statusEl.className = 'status-api status-api--ok';
                     document.getElementById('formAgendamento').reset();
 
+                    // Verifica se tem "pix" ou "qr code" no nome
                     var selectPagamento = document.getElementById('pagamento');
                     var nomePagamentoSelecionado = selectPagamento.options[selectPagamento.selectedIndex] ? selectPagamento.options[selectPagamento.selectedIndex].text.toLowerCase() : '';
 
-                    if (nomePagamentoSelecionado.includes('pix')) {
+                    console.log("Forma de Pagamento Detectada pelo Sistema:", nomePagamentoSelecionado);
+
+                    if (nomePagamentoSelecionado.includes('pix') || nomePagamentoSelecionado.includes('qr code') || nomePagamentoSelecionado.includes('qrcode')) {
                         exibirCobrancaPix();
                     } else {
                         setTimeout(function () {
@@ -312,6 +332,7 @@
                     statusEl.className = 'status-api status-api--erro';
                 } finally {
                     btnEnviar.disabled = false;
+                    btnEnviar.textContent = textoOriginalBtn;
                 }
             });
         })();
