@@ -312,14 +312,17 @@
 
                     statusEl.textContent = '✔ Agendamento confirmado!';
                     statusEl.className = 'status-api status-api--ok';
-                    document.getElementById('formAgendamento').reset();
 
-                    // Verifica se tem "pix" ou "qr code" no nome
+                    // 1º PASSO: LER A FORMA DE PAGAMENTO *ANTES* DE RESETAR O FORMULÁRIO!
                     var selectPagamento = document.getElementById('pagamento');
                     var nomePagamentoSelecionado = selectPagamento.options[selectPagamento.selectedIndex] ? selectPagamento.options[selectPagamento.selectedIndex].text.toLowerCase() : '';
 
+                    // 2º PASSO: AGORA SIM, RESETAR O FORMULÁRIO
+                    document.getElementById('formAgendamento').reset();
+
                     console.log("Forma de Pagamento Detectada pelo Sistema:", nomePagamentoSelecionado);
 
+                    // 3º PASSO: AVALIAR E MOSTRAR O PIX
                     if (nomePagamentoSelecionado.includes('pix') || nomePagamentoSelecionado.includes('qr code') || nomePagamentoSelecionado.includes('qrcode')) {
                         exibirCobrancaPix();
                     } else {
