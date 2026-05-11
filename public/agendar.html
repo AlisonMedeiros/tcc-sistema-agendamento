@@ -27,94 +27,155 @@
             color: white; border-radius: 8px; padding: 6px 12px; font-size: 0.8rem;
             cursor: pointer; text-decoration: none;
         }
+        /* Ajuste fino para a tela de agendamento caber perfeitamente no novo layout */
+        .admin-main .app-container {
+            margin-top: 15px;
+            box-shadow: none;
+            padding: 0;
+            background: transparent;
+        }
+        form.form-agendamento {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
     </style>
 </head>
-<body>
-    <div class="app-container">
+<body class="admin-body">
 
-        <div class="saudacao">
-            <div>
-                <div class="saudacao__nome" id="saudacaoNome">Novo Agendamento</div>
-                <div class="saudacao__sub">Escolha o serviço e o horário desejado.</div>
-            </div>
-            <a href="cliente.html" id="linkVoltar" class="btn-voltar-painel">Voltar ao Painel</a>
+    <header class="admin-header">
+        <div class="header-left" style="display: flex; align-items: center;">
+            <button onclick="toggleMenuMobile()" class="btn-menu-lateral">☰</button>
+            <h1>Gündem <span class="badge" id="headerBadge">Cliente</span></h1>
         </div>
+        
+        <nav class="nav-desktop" style="display: flex; align-items: center; gap: 15px;">
+            <button onclick="voltarPainel()" class="btn-voltar" style="position: static; margin: 0; padding: 10px 20px; border:none;">Voltar ao Painel</button>
+            <a href="perfil.html" class="btn-voltar" style="position: static; margin: 0; padding: 10px 20px;">Meu Perfil</a>
+            <button onclick="logout()" class="btn-cancelar" style="position: static; width: auto; padding: 10px 20px; margin: 0; border-radius: 25px;">Sair</button>
+        </nav>
+    </header>
 
-        <div id="statusAgendamento" class="status-api" role="status" style="display:none;"></div>
-
-        <form id="formAgendamento" class="form-agendamento" novalidate>
-            <div id="blocoAdmin" style="display: none; background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <p style="font-size: 14px; font-weight: bold; margin-bottom: 8px; color: var(--roxo-principal);">Modo Admin - Dados da Cliente</p>
-                <label class="field-label">Nome da Cliente *</label>
-                <input type="text" id="adminNomeCliente" placeholder="Obrigatório para admin">
-                
-                <label class="field-label">Telefone</label>
-                <input type="tel" id="adminTelCliente">
-                
-                <label class="field-label">E-mail</label>
-                <input type="email" id="adminEmailCliente">
-            </div>
-
-            <label class="field-label" for="data_hora_inicio">Data e hora de início</label>
-            <input type="datetime-local" id="data_hora_inicio" name="data_hora_inicio" required>
-
-            <label class="field-label" for="servico">Serviço</label>
-            <select id="servico" name="servico" required>
-                <option value="" disabled selected>Selecione um serviço…</option>
-            </select>
-
-            <label class="field-label" for="pagamento">Forma de pagamento <span class="opcional">(opcional)</span></label>
-            <select id="pagamento" name="pagamento">
-                <option value="">Não registrar agora</option>
-            </select>
-
-            <label class="field-label" for="observacoes">Observações <span class="opcional">(opcional)</span></label>
-            <textarea id="observacoes" name="observacoes" rows="2" placeholder="Preferências, alergias, etc."></textarea>
-
-            <button type="submit" id="btnEnviar">Confirmar agendamento</button>
-        </form>
-
-        <div id="boxPagamentoPix" style="display: none; text-align: center; background: #fff; padding: 20px; border: 2px dashed var(--roxo-principal); border-radius: 10px; margin-top: 10px;">
-            <h3 style="color: var(--roxo-principal); margin-bottom: 10px;">🎉 Agendamento Confirmado!</h3>
-            <p style="font-size: 14px; margin-bottom: 15px;">Para garantir o seu horário, realize o pagamento via PIX:</p>
-            
-            <img src="/qr-pix-debora.png" alt="QR Code do PIX" style="max-width: 200px; border-radius: 10px; margin: 0 auto 15px auto; display: block;">
-            
-            <p style="margin-bottom: 15px;"><strong>Chave PIX (Telefone):</strong> <br><span style="font-size: 1.1rem; color: #333;">(11) 99999-9999</span></p>
-            
-            <button type="button" onclick="copiarChavePix()" style="background-color: #28a745; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 15px; width: 100%;">
-                📋 Copiar PIX "Copia e Cola"
-            </button>
-
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px; background: #f9f9f9; padding: 10px; border-radius: 5px;">
-                Após o pagamento, não se esqueça de enviar o comprovante no nosso WhatsApp!
-            </p>
-            
-            <button type="button" onclick="fecharBoxPix()" style="background-color: var(--roxo-secundario); color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
-                Fechar e Voltar ao Painel
-            </button>
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="fecharMenuMobile()"></div>
+    <div id="sidebarMobile" class="sidebar-mobile">
+        <div class="sidebar-header">
+            <h2 style="margin: 0; font-size: 18px;">Menu</h2>
+            <button onclick="fecharMenuMobile()" class="btn-fechar-sidebar">✖</button>
         </div>
-
+        <div class="sidebar-content">
+            <p class="sidebar-titulo">Ações</p>
+            <button onclick="voltarPainel()" class="btn-sidebar-link" style="border:none; text-align:left; width:100%; font-size:16px;">Voltar ao Painel</button>
+            
+            <p class="sidebar-titulo" style="margin-top: 20px;">Conta</p>
+            <a href="perfil.html" class="btn-sidebar-link">Meu Perfil</a>
+            <button onclick="logout()" class="btn-sidebar-link btn-sair-sidebar">Sair da Conta</button>
+        </div>
     </div>
 
+    <main class="admin-main">
+        <div class="app-container">
+            <div class="saudacao">
+                <div>
+                    <div class="saudacao__nome" id="saudacaoNome">Novo Agendamento</div>
+                    <div class="saudacao__sub">Escolha o serviço e o horário desejado.</div>
+                </div>
+                <button onclick="voltarPainel()" class="btn-voltar-painel">Voltar</button>
+            </div>
+
+            <div id="statusAgendamento" class="status-api" role="status" style="display:none;"></div>
+
+            <form id="formAgendamento" class="form-agendamento" novalidate>
+                <div id="blocoAdmin" style="display: none; background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="font-size: 14px; font-weight: bold; margin-bottom: 8px; color: var(--roxo-principal);">Modo Admin - Dados da Cliente</p>
+                    <label class="field-label">Nome da Cliente *</label>
+                    <input type="text" id="adminNomeCliente" placeholder="Obrigatório para admin">
+                    
+                    <label class="field-label">Telefone</label>
+                    <input type="tel" id="adminTelCliente">
+                    
+                    <label class="field-label">E-mail</label>
+                    <input type="email" id="adminEmailCliente">
+                </div>
+
+                <label class="field-label" for="data_hora_inicio">Data e hora de início</label>
+                <input type="datetime-local" id="data_hora_inicio" name="data_hora_inicio" required>
+
+                <label class="field-label" for="servico">Serviço</label>
+                <select id="servico" name="servico" required>
+                    <option value="" disabled selected>Selecione um serviço…</option>
+                </select>
+
+                <label class="field-label" for="pagamento">Forma de pagamento <span class="opcional">(opcional)</span></label>
+                <select id="pagamento" name="pagamento">
+                    <option value="">Não registrar agora</option>
+                </select>
+
+                <label class="field-label" for="observacoes">Observações <span class="opcional">(opcional)</span></label>
+                <textarea id="observacoes" name="observacoes" rows="2" placeholder="Preferências, alergias, etc."></textarea>
+
+                <button type="submit" id="btnEnviar">Confirmar agendamento</button>
+            </form>
+
+            <div id="boxPagamentoPix" style="display: none; text-align: center; background: #fff; padding: 20px; border: 2px dashed var(--roxo-principal); border-radius: 10px; margin-top: 10px;">
+                <h3 style="color: var(--roxo-principal); margin-bottom: 10px;">🎉 Agendamento Confirmado!</h3>
+                <p style="font-size: 14px; margin-bottom: 15px;">Para garantir o seu horário, realize o pagamento via PIX:</p>
+                
+                <img src="/qr-pix-debora.png" alt="QR Code do PIX" style="max-width: 200px; border-radius: 10px; margin: 0 auto 15px auto; display: block;">
+                
+                <p style="margin-bottom: 15px;"><strong>Chave PIX (Telefone):</strong> <br><span style="font-size: 1.1rem; color: #333;">(11) 99999-9999</span></p>
+                
+                <button type="button" onclick="copiarChavePix()" style="background-color: #28a745; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 15px; width: 100%;">
+                    📋 Copiar PIX "Copia e Cola"
+                </button>
+
+                <p style="font-size: 13px; color: #666; margin-bottom: 15px; background: #f9f9f9; padding: 10px; border-radius: 5px;">
+                    Após o pagamento, não se esqueça de enviar o comprovante no nosso WhatsApp!
+                </p>
+                
+                <button type="button" onclick="fecharBoxPix()" style="background-color: var(--roxo-secundario); color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
+                    Fechar e Voltar ao Painel
+                </button>
+            </div>
+        </div>
+    </main>
+
     <script>
-        // --- FUNÇÕES GLOBAIS PARA O PIX ---
+        // --- FUNÇÕES DE MENU E NAVEGAÇÃO ---
+        window.toggleMenuMobile = function() {
+            document.getElementById('sidebarMobile').classList.add('aberto');
+            document.getElementById('sidebarOverlay').classList.add('aberto');
+        };
+
+        window.fecharMenuMobile = function() {
+            document.getElementById('sidebarMobile').classList.remove('aberto');
+            document.getElementById('sidebarOverlay').classList.remove('aberto');
+        };
+
+        window.logout = function() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        };
+
+        window.voltarPainel = function() {
+            const tipo = localStorage.getItem('gundem_user_tipo');
+            window.location.href = (tipo === 'admin') ? 'admin.html' : 'cliente.html';
+        };
+
+        // --- FUNÇÕES DO PIX ---
         function exibirCobrancaPix() {
             document.getElementById('formAgendamento').style.display = 'none';
             document.getElementById('statusAgendamento').style.display = 'none';
             document.getElementById('boxPagamentoPix').style.display = 'block';
-            window.scrollTo(0, 0); // Sobe a tela para mostrar o QR Code
+            window.scrollTo(0, 0); 
         }
 
         function fecharBoxPix() {
-            const tipoUsuario = localStorage.getItem('gundem_user_tipo');
-            window.location.href = (tipoUsuario === 'admin') ? 'admin.html' : 'cliente.html';
+            voltarPainel();
         }
 
         function copiarChavePix() {
-            // Substituir a string abaixo pelo código PIX gerado no app do banco
             const codigoPixCopiaECola = "00020126360014br.gov.bcb.pix0114+55119999999995204000053039865802BR5912Debora Braga6009Sao Paulo62070503***63041A2B"; 
-            
             navigator.clipboard.writeText(codigoPixCopiaECola).then(function() {
                 alert("Código PIX Copia e Cola copiado com sucesso! Abra o app do seu banco e cole.");
             }).catch(function(err) {
@@ -122,27 +183,31 @@
                 alert("Não foi possível copiar automaticamente. Use a chave de telefone.");
             });
         }
-        // ----------------------------------
 
+        // --- LÓGICA DE INICIALIZAÇÃO ---
         (function () {
             const token = localStorage.getItem('gundem_token');
             const tipo = localStorage.getItem('gundem_user_tipo');
             const nomeUsuario = localStorage.getItem('gundem_user_nome');
 
             if (!token) {
-                window.location.href = 'index.html'; // Vai pro login
+                window.location.href = 'index.html'; 
                 return;
             }
 
             var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
             function apiUrl(p) { return API_BASE + p; }
 
-            // Configura a tela com base no tipo
+            // Configura a tela com base no tipo (Admin ou Cliente)
+            const badge = document.getElementById('headerBadge');
             if (tipo === 'admin') {
-                document.getElementById('linkVoltar').href = 'admin.html';
                 document.getElementById('blocoAdmin').style.display = 'block';
+                badge.textContent = 'Admin';
+                badge.style.background = '#FF6B6B'; // Cor vermelhinha de admin
             } else {
                 document.getElementById('saudacaoNome').textContent = 'Agendar, ' + nomeUsuario.split(' ')[0] + '!';
+                badge.textContent = 'Cliente';
+                badge.style.background = 'var(--amarelo-secundario)';
             }
 
             // Carregar selects
@@ -199,7 +264,6 @@
                     observacoes: observacoes || null
                 };
 
-                // Se for admin, passa os dados do form de admin
                 if (tipo === 'admin') {
                     payload.nome_cliente = document.getElementById('adminNomeCliente').value.trim();
                     payload.telefone = document.getElementById('adminTelCliente').value.trim();
@@ -233,21 +297,16 @@
                     statusEl.className = 'status-api status-api--ok';
                     document.getElementById('formAgendamento').reset();
 
-                    // --- NOVA LÓGICA DE REDIRECIONAMENTO OU PIX ---
                     var selectPagamento = document.getElementById('pagamento');
                     var nomePagamentoSelecionado = selectPagamento.options[selectPagamento.selectedIndex] ? selectPagamento.options[selectPagamento.selectedIndex].text.toLowerCase() : '';
 
                     if (nomePagamentoSelecionado.includes('pix')) {
-                        // Se escolheu PIX, mostra a tela do QR Code e não redireciona!
                         exibirCobrancaPix();
                     } else {
-                        // Se foi outra forma, faz o redirecionamento automático em 2 segundos
                         setTimeout(function () {
-                            window.location.href = (tipo === 'admin') ? 'admin.html' : 'cliente.html';
+                            voltarPainel();
                         }, 2000);
                     }
-                    // ----------------------------------------------
-
                 } catch (e) {
                     statusEl.textContent = e.message || 'Erro ao agendar.';
                     statusEl.className = 'status-api status-api--erro';
