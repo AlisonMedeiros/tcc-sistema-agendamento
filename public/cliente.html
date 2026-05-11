@@ -13,15 +13,33 @@
 
 <body class="admin-body">
     <header class="admin-header">
-        <div class="header-left">
+        <div class="header-left" style="display: flex; align-items: center;">
+            <button onclick="toggleMenuMobile()" class="btn-menu-lateral">☰</button>
             <h1>Gündem <span class="badge" style="background: var(--amarelo-secundario);">Cliente</span></h1>
         </div>
-        <nav style="display: flex; align-items: center; gap: 15px;">
+        
+        <nav class="nav-desktop" style="display: flex; align-items: center; gap: 15px;">
             <a href="agendar.html" class="btn-voltar" style="position: static; margin: 0; padding: 10px 20px;">Novo Agendamento</a>
             <a href="perfil.html" class="btn-voltar" style="position: static; margin: 0; padding: 10px 20px;">Meu Perfil</a>
             <button onclick="logout()" class="btn-cancelar" style="position: static; width: auto; padding: 10px 20px; margin: 0; border-radius: 25px;">Sair</button>
         </nav>
     </header>
+
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="fecharMenuMobile()"></div>
+    <div id="sidebarMobile" class="sidebar-mobile">
+        <div class="sidebar-header">
+            <h2 style="margin: 0; font-size: 18px;">Menu</h2>
+            <button onclick="fecharMenuMobile()" class="btn-fechar-sidebar">✖</button>
+        </div>
+        <div class="sidebar-content">
+            <p class="sidebar-titulo">Ações</p>
+            <a href="agendar.html" class="btn-sidebar-link">Novo Agendamento</a>
+            
+            <p class="sidebar-titulo" style="margin-top: 20px;">Conta</p>
+            <a href="perfil.html" class="btn-sidebar-link">Meu Perfil</a>
+            <button onclick="logout()" class="btn-sidebar-link btn-sair-sidebar">Sair da Conta</button>
+        </div>
+    </div>
 
     <main class="admin-main">
         <section class="admin-cards">
@@ -62,6 +80,17 @@
     </main>
 
     <script>
+        // --- FUNÇÕES DO MENU MOBILE ---
+        window.toggleMenuMobile = function() {
+            document.getElementById('sidebarMobile').classList.add('aberto');
+            document.getElementById('sidebarOverlay').classList.add('aberto');
+        };
+
+        window.fecharMenuMobile = function() {
+            document.getElementById('sidebarMobile').classList.remove('aberto');
+            document.getElementById('sidebarOverlay').classList.remove('aberto');
+        };
+
         (function () {
             const token = localStorage.getItem('gundem_token');
             const tipo = localStorage.getItem('gundem_user_tipo');
@@ -79,7 +108,7 @@
 
             var statusEl = document.getElementById('statusApi');
             var tbody = document.getElementById('tbodyMeusAgendamentos');
-            var cardsContainer = document.getElementById('listaCardsAgendamentosMobile'); // Novo container mobile
+            var cardsContainer = document.getElementById('listaCardsAgendamentosMobile');
 
             function setStatus(msg, tipo) {
                 statusEl.textContent = msg;
@@ -108,13 +137,13 @@
             
             var todosAgendamentos = [];
 
-            // NOVA FUNÇÃO RENDERIZAR (PREENCHE TABELA E CARDS)
+            // RENDERIZAÇÃO (TABELA E CARDS)
             function renderizarAgendamentos(lista) {
                 if (lista.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="4" class="text-center">Você não possui agendamentos para esta seleção.</td></tr>';
                     cardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Você não possui agendamentos para esta seleção.</div>';
                 } else {
-                    // 1. Renderiza a Tabela (Desktop)
+                    // Tabela (Desktop)
                     tbody.innerHTML = lista.map(function (a) {
                         return `<tr>
                             <td>${formatarData(a.data_hora_inicio)}</td>
@@ -124,9 +153,8 @@
                         </tr>`;
                     }).join('');
 
-                    // 2. Renderiza os Cards (Mobile)
+                    // Cards (Mobile)
                     cardsContainer.innerHTML = lista.map(function (a) {
-                        // Define uma cor baseada no status
                         var corStatus = 'var(--roxo-principal)';
                         var st = a.status.toLowerCase();
                         if(st === 'cancelado') corStatus = 'red';
