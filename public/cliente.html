@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
-    <link rel="apple-touch-icon" href="icon-192.svg">
+    <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 
 <body class="admin-body">
@@ -19,12 +19,29 @@
                 <span class="badge" id="headerBadge">Cliente</span>
             </h1>
         </div>
-        <nav style="display: flex; align-items: center; gap: 15px;">
+        
+        <nav class="nav-desktop" style="display: flex; align-items: center; gap: 15px;">
             <a href="agendar.html" class="btn-voltar" style="position: static; margin: 0; padding: 10px 20px;">Novo Agendamento</a>
             <a href="perfil.html" class="btn-voltar" style="position: static; margin: 0; padding: 10px 20px;">Meu Perfil</a>
             <button onclick="logout()" class="btn-cancelar" style="position: static; width: auto; padding: 10px 20px; margin: 0; border-radius: 25px;">Sair</button>
         </nav>
     </header>
+
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="fecharMenuMobile()"></div>
+    <div id="sidebarMobile" class="sidebar-mobile">
+        <div class="sidebar-header">
+            <h2 style="margin: 0; font-size: 18px;">Menu</h2>
+            <button onclick="fecharMenuMobile()" class="btn-fechar-sidebar">✖</button>
+        </div>
+        <div class="sidebar-content">
+            <p class="sidebar-titulo">Ações</p>
+            <a href="agendar.html" class="btn-sidebar-link">Novo Agendamento</a>
+            
+            <p class="sidebar-titulo" style="margin-top: 20px;">Conta</p>
+            <a href="perfil.html" class="btn-sidebar-link">Meu Perfil</a>
+            <button onclick="logout()" class="btn-sidebar-link btn-sair-sidebar">Sair da Conta</button>
+        </div>
+    </div>
 
     <main class="admin-main">
         <section class="admin-cards">
@@ -36,13 +53,18 @@
 
         <section class="admin-tabelas">
             <div class="tabela-container">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 10px;">
-                    <h2 style="margin-bottom: 0;">Meus Agendamentos</h2>
-                    <input type="date" id="filtroData" style="width: auto; margin-bottom: 0; padding: 6px 12px;" title="Filtrar por data específica">
-                </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <h2 style="margin-bottom: 0;">Meus Agendamentos</h2>
+                <a href="agendar.html" style="background-color: var(--roxo-principal); color: white; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 22px; font-weight: bold; box-shadow: 0 3px 6px rgba(0,0,0,0.15); transition: transform 0.2s;" title="Novo Agendamento" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                    +
+                </a>
+            </div>
+    <input type="date" id="filtroData" style="width: auto; margin-bottom: 0; padding: 6px 12px;" title="Filtrar por data específica">
+            </div>
                 <div id="statusApi" class="status-api" role="status">Carregando seus dados...</div>
                 
-                <div class="table-responsive">
+                <div class="table-responsive tabela-responsiva">
                     <table class="table-admin" id="tableMeusAgendamentos">
                         <thead>
                             <tr>
@@ -53,15 +75,29 @@
                             </tr>
                         </thead>
                         <tbody id="tbodyMeusAgendamentos">
-                            <!-- preenchido via JS -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
+
+                <div id="listaCardsAgendamentosMobile" class="lista-cards-mobile">
+                    </div>
+
             </div>
         </section>
     </main>
 
     <script>
+        // --- FUNÇÕES DO MENU MOBILE ---
+        window.toggleMenuMobile = function() {
+            document.getElementById('sidebarMobile').classList.add('aberto');
+            document.getElementById('sidebarOverlay').classList.add('aberto');
+        };
+
+        window.fecharMenuMobile = function() {
+            document.getElementById('sidebarMobile').classList.remove('aberto');
+            document.getElementById('sidebarOverlay').classList.remove('aberto');
+        };
+
         (function () {
             const token = localStorage.getItem('gundem_token');
             const tipo = localStorage.getItem('gundem_user_tipo');
@@ -79,6 +115,7 @@
 
             var statusEl = document.getElementById('statusApi');
             var tbody = document.getElementById('tbodyMeusAgendamentos');
+            var cardsContainer = document.getElementById('listaCardsAgendamentosMobile');
 
             function setStatus(msg, tipo) {
                 statusEl.textContent = msg;
@@ -105,14 +142,15 @@
                 window.location.href = 'login.html';
             };
             
-            var tbody = document.getElementById('tbodyMeusAgendamentos');
-            var statusEl = document.getElementById('statusApi');
             var todosAgendamentos = [];
 
+            // RENDERIZAÇÃO (TABELA E CARDS)
             function renderizarAgendamentos(lista) {
                 if (lista.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="4" class="text-center">Você não possui agendamentos para esta seleção.</td></tr>';
+                    cardsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Você não possui agendamentos para esta seleção.</div>';
                 } else {
+                    // Tabela (Desktop)
                     tbody.innerHTML = lista.map(function (a) {
                         return `<tr>
                             <td>${formatarData(a.data_hora_inicio)}</td>
@@ -120,6 +158,35 @@
                             <td><span class="status-tag">${escapeHtml(a.status)}</span></td>
                             <td><small>${escapeHtml(a.observacoes || '—')}</small></td>
                         </tr>`;
+                    }).join('');
+
+                    // Cards (Mobile)
+                    cardsContainer.innerHTML = lista.map(function (a) {
+                        var corStatus = 'var(--roxo-principal)';
+                        var st = a.status.toLowerCase();
+                        if(st === 'cancelado') corStatus = 'red';
+                        if(st === 'concluido') corStatus = 'green';
+
+                        return `
+                        <div class="card-agendamento-mobile">
+                            <div class="card-mobile__linha">
+                                <span class="card-mobile__label">Data e Hora:</span>
+                                <span class="card-mobile__valor">${formatarData(a.data_hora_inicio)}</span>
+                            </div>
+                            <div class="card-mobile__linha">
+                                <span class="card-mobile__label">Serviço:</span>
+                                <span class="card-mobile__valor"><strong>${escapeHtml(a.servico)}</strong></span>
+                            </div>
+                            <div class="card-mobile__linha">
+                                <span class="card-mobile__label">Status:</span>
+                                <span class="card-mobile__valor" style="color: ${corStatus}; font-weight: bold; text-transform: capitalize;">${escapeHtml(a.status)}</span>
+                            </div>
+                            ${a.observacoes ? `
+                            <div class="card-mobile__linha" style="margin-top: 5px; border-top: 1px solid #eee; padding-top: 5px;">
+                                <span class="card-mobile__label" style="font-size: 12px;">Obs:</span>
+                                <span class="card-mobile__valor" style="font-size: 12px; font-weight: normal; text-align: right;">${escapeHtml(a.observacoes)}</span>
+                            </div>` : ''}
+                        </div>`;
                     }).join('');
                 }
             }
@@ -131,7 +198,6 @@
                     return;
                 }
                 var filtrados = todosAgendamentos.filter(function(a) {
-                    // a.data_hora_inicio vem como 'YYYY-MM-DDTHH...'
                     return a.data_hora_inicio && a.data_hora_inicio.startsWith(dataBusca);
                 });
                 renderizarAgendamentos(filtrados);

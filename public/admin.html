@@ -1,14 +1,5 @@
 <!DOCTYPE html>
-<script>
-    // Verifica se é realmente um admin
-    const tipo = localStorage.getItem('gundem_user_tipo');
-    if (tipo !== 'admin') {
-        alert('Acesso negado! Esta área é exclusiva para administradores.');
-        window.location.href = 'login.html';
-    }
-</script>
 <html lang="pt">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,9 +8,17 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
-    <link rel="apple-touch-icon" href="icon-192.svg">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script>
+        // Verifica se é realmente um admin ANTES de carregar a página
+        const tipo = localStorage.getItem('gundem_user_tipo');
+        if (tipo !== 'admin') {
+            alert('Acesso negado! Esta área é exclusiva para administradores.');
+            window.location.href = 'login.html';
+        }
+    </script>
 </head>
 
 <body class="admin-body">
@@ -96,7 +95,6 @@
             </div>
         </section>
 
-        <!-- Gráficos (Serviços x Receitas) -->
         <section id="sec-faturamento" class="admin-charts aba-painel" style="margin-bottom: 40px;">
             <div class="tabela-container">
                 <h2 style="margin-bottom: 24px;">Faturamento Anual (R$)</h2>
@@ -106,11 +104,11 @@
             </div>
         </section>
 
-        <!-- Listagens Independentes -->
         <section id="sec-clientes" class="aba-painel" style="margin-bottom: 30px;">
             <div class="tabela-container">
                 <h2>Clientes Cadastradas</h2>
-                <div class="table-responsive">
+                
+                <div class="table-responsive tabela-responsiva">
                     <table class="table-admin" id="tableClientes">
                         <thead>
                             <tr>
@@ -119,11 +117,11 @@
                                 <th>Telefone</th>
                             </tr>
                         </thead>
-                        <tbody id="tbodyClientes">
-                            <!-- preenchido via JS -->
-                        </tbody>
+                        <tbody id="tbodyClientes"></tbody>
                     </table>
                 </div>
+
+                <div id="listaCardsClientesMobile" class="lista-cards-mobile"></div>
             </div>
         </section>
 
@@ -131,9 +129,9 @@
             <div class="tabela-container">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <h2 style="margin-bottom: 0;">Todos os Agendamentos</h2>
-                    <button onclick="abrirModalPacote()" class="btn-enviar" style="width: auto; padding: 8px 16px; font-size: 14px; border-radius: 8px;">+ Novo Pacote Semanal</button>
+                    <button onclick="abrirModalPacote()" class="btn-enviar" style="width: auto; padding: 8px 16px; font-size: 14px; border-radius: 8px;">+ Novo Pacote</button>
                 </div>
-                <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
                     <input type="date" id="filtroDataAgendamento">
                     <select id="filtroStatusAgendamento">
                         <option value="">Todos Status</option>
@@ -142,14 +140,12 @@
                         <option value="concluido">Concluido</option>
                         <option value="cancelado">Cancelado</option>
                     </select>
-                    <button onclick="carregarListaFiltro()"
-                        style="width: auto; padding: 0 16px; border-radius: 8px; background-color: var(--roxo-principal); color: white; height: 38px; font-size: 14px;">Filtrar</button>
-                    <button
-                        onclick="document.getElementById('filtroDataAgendamento').value=''; document.getElementById('filtroStatusAgendamento').value=''; carregarListaFiltro()"
-                        style="width: auto; padding: 0 16px; border-radius: 8px; background-color: #999; color: white; height: 38px; font-size: 14px; box-shadow: none;">Limpar</button>
+                    <button onclick="carregarListaFiltro()" style="width: auto; padding: 0 16px; border-radius: 8px; background-color: var(--roxo-principal); color: white; height: 38px; font-size: 14px;">Filtrar</button>
+                    <button onclick="document.getElementById('filtroDataAgendamento').value=''; document.getElementById('filtroStatusAgendamento').value=''; carregarListaFiltro()" style="width: auto; padding: 0 16px; border-radius: 8px; background-color: #999; color: white; height: 38px; font-size: 14px; box-shadow: none;">Limpar</button>
                 </div>
                 <div id="statusApi" class="status-api" role="status">Carregando dados...</div>
-                <div class="table-responsive">
+                
+                <div class="table-responsive tabela-responsiva">
                     <table class="table-admin" id="tableAgendamentos">
                         <thead>
                             <tr>
@@ -159,19 +155,20 @@
                                 <th>Status</th>
                             </tr>
                         </thead>
-                        <tbody id="tbodyAgendamentos">
-                            <!-- preenchido via JS -->
-                        </tbody>
+                        <tbody id="tbodyAgendamentos"></tbody>
                     </table>
                 </div>
+
+                <div id="listaCardsAgendamentosMobile" class="lista-cards-mobile"></div>
             </div>
         </section>
 
         <section id="sec-servicos" class="aba-painel" style="margin-bottom: 30px;">
             <div class="tabela-container">
                 <h2>Serviços Disponíveis</h2>
-                <div class="table-responsive">
-                    <a href="configuracoes.html" class="btn-config" style="position: absolute; top: 20px; right: 30px; margin: 0; padding: 10px 20px; font-size: 16px;" title="Avançado">+</a>
+                <a href="configuracoes.html" class="btn-config" style="position: absolute; top: 20px; right: 30px; margin: 0; padding: 10px 20px; font-size: 16px;" title="Avançado">+</a>
+                
+                <div class="table-responsive tabela-responsiva">
                     <table class="table-admin" id="tableServicos">
                         <thead>
                             <tr>
@@ -180,46 +177,45 @@
                                 <th>Preço (R$)</th>
                             </tr>
                         </thead>
-                        <tbody id="tbodyServicos">
-                            <!-- preenchido via JS -->
-                        </tbody>
+                        <tbody id="tbodyServicos"></tbody>
                     </table>
                 </div>
+
+                <div id="listaCardsServicosMobile" class="lista-cards-mobile"></div>
             </div>
         </section>
     </main>
+
     <div id="modalPacote" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
-    <div class="app-container" style="background: white; padding: 30px; border-radius: 12px; width: 400px; max-width: 90%;">
-        <h3 style="color: var(--roxo-principal); margin-bottom: 16px;">Agendar Pacote (Fixo)</h3>
-        
-        <div id="statusPacote" class="status-api" style="display:none; margin-bottom: 16px;"></div>
-        
-        <form id="formPacote">
-            <label class="field-label">E-mail da Cliente</label>
-            <input type="email" id="pacoteEmail" required placeholder="E-mail cadastrado da cliente">
+        <div class="app-container" style="background: white; padding: 30px; border-radius: 12px; width: 400px; max-width: 90%;">
+            <h3 style="color: var(--roxo-principal); margin-bottom: 16px;">Agendar Pacote (Fixo)</h3>
+            <div id="statusPacote" class="status-api" style="display:none; margin-bottom: 16px;"></div>
+            <form id="formPacote">
+                <label class="field-label">E-mail da Cliente</label>
+                <input type="email" id="pacoteEmail" required placeholder="E-mail cadastrado da cliente">
 
-            <label class="field-label">Serviço</label>
-            <select id="pacoteServico" required>
-                <option value="" disabled selected>Selecione um serviço...</option>
-            </select>
+                <label class="field-label">Serviço</label>
+                <select id="pacoteServico" required>
+                    <option value="" disabled selected>Selecione um serviço...</option>
+                </select>
 
-            <label class="field-label">Data e Hora Inicial</label>
-            <input type="datetime-local" id="pacoteDataHora" required>
+                <label class="field-label">Data e Hora Inicial</label>
+                <input type="datetime-local" id="pacoteDataHora" required>
 
-            <label class="field-label">Duração do Pacote</label>
-            <select id="pacoteSemanas" required>
-                <option value="4">4 semanas (1 mês)</option>
-                <option value="8">8 semanas (2 meses)</option>
-                <option value="12">12 semanas (3 meses)</option>
-            </select>
+                <label class="field-label">Duração do Pacote</label>
+                <select id="pacoteSemanas" required>
+                    <option value="4">4 semanas (1 mês)</option>
+                    <option value="8">8 semanas (2 meses)</option>
+                    <option value="12">12 semanas (3 meses)</option>
+                </select>
 
-            <div style="display: flex; gap: 10px; margin-top: 24px;">
-                <button type="submit" class="btn-enviar" id="btnSalvarPacote">Agendar Semanas</button>
-                <button type="button" onclick="fecharModalPacote()" style="background: #999;">Cancelar</button>
-            </div>
-        </form>
+                <div style="display: flex; gap: 10px; margin-top: 24px;">
+                    <button type="submit" class="btn-enviar" id="btnSalvarPacote">Agendar Semanas</button>
+                    <button type="button" onclick="fecharModalPacote()" style="background: #999;">Cancelar</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
     <script>
         window.abrirAba = function(idAba, botaoClicado) {
@@ -231,7 +227,6 @@
                 botaoClicado.classList.add('ativa');
             }
 
-            // O Chart.js não dimensiona certo se for renderizado em display:none. Forçar resize!
             if (idAba === 'sec-faturamento' && window.meuGrafico) {
                 setTimeout(() => { window.meuGrafico.resize(); }, 50);
             }
@@ -243,7 +238,11 @@
 
             var statusEl = document.getElementById('statusApi');
             var tbodyAg = document.getElementById('tbodyAgendamentos');
+            var cardsAg = document.getElementById('listaCardsAgendamentosMobile');
             var tbodySv = document.getElementById('tbodyServicos');
+            var cardsSv = document.getElementById('listaCardsServicosMobile');
+            var tbodyCli = document.getElementById('tbodyClientes');
+            var cardsCli = document.getElementById('listaCardsClientesMobile');
             var totalAg = document.getElementById('totalAgendamentos');
             var totalSv = document.getElementById('totalServicos');
 
@@ -272,6 +271,7 @@
                 return div.innerHTML;
             }
 
+            // --- FUNÇÃO PARA RENDERIZAR AGENDAMENTOS (TABELA E CARDS) ---
             window.carregarListaFiltro = async function () {
                 try {
                     let dataFiltro = document.getElementById('filtroDataAgendamento').value;
@@ -285,7 +285,6 @@
                     if (!resA.ok) throw new Error('Falha ao carregar agendamentos');
                     var agendamentos = await resA.json();
 
-                    // Filtro de Status no Frontend (Simple and fast)
                     if (statusFiltro) {
                         agendamentos = agendamentos.filter(a => a.status === statusFiltro);
                     }
@@ -294,7 +293,9 @@
 
                     if (agendamentos.length === 0) {
                         tbodyAg.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum agendamento encontrado' + (dataFiltro ? ' nesta data.' : '.') + '</td></tr>';
+                        cardsAg.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Nenhum agendamento encontrado.</div>';
                     } else {
+                        // Tabela
                         tbodyAg.innerHTML = agendamentos.map(function (a) {
                             return `<tr>
                                 <td>${formatarData(a.data_hora_inicio)}</td>
@@ -311,10 +312,68 @@
                                 </td>
                             </tr>`;
                         }).join('');
+
+                        // Cards Mobile
+                        cardsAg.innerHTML = agendamentos.map(function (a) {
+                            var corStatus = 'var(--roxo-principal)';
+                            var st = a.status.toLowerCase();
+                            if(st === 'cancelado') corStatus = 'red';
+                            if(st === 'concluido') corStatus = 'green';
+
+                            return `
+                            <div class="card-agendamento-mobile">
+                                <div class="card-mobile__linha"><span class="card-mobile__label">Data:</span> <span class="card-mobile__valor">${formatarData(a.data_hora_inicio)}</span></div>
+                                <div class="card-mobile__linha"><span class="card-mobile__label">Cliente:</span> <span class="card-mobile__valor"><strong>${escapeHtml(a.cliente)}</strong><br><small>${escapeHtml(a.cliente_telefone || '')}</small></span></div>
+                                <div class="card-mobile__linha"><span class="card-mobile__label">Serviço:</span> <span class="card-mobile__valor">${escapeHtml(a.servico)}</span></div>
+                                <div class="card-mobile__linha"><span class="card-mobile__label">Status:</span> <span class="card-mobile__valor" style="color: ${corStatus}; font-weight: bold; text-transform: capitalize;">${escapeHtml(a.status)}</span></div>
+                                ${a.status === 'marcado' || a.status === 'confirmado' ? `
+                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; display: flex; gap: 8px; justify-content: flex-end;">
+                                        <button onclick="atualizarStatus(${a.id_agendamento}, 'concluido')" class="btn-acao btn-concluir" style="padding: 6px 12px; font-size: 13px;">✔ Concluir</button>
+                                        <button onclick="atualizarStatus(${a.id_agendamento}, 'cancelado')" class="btn-acao btn-cancelar" style="padding: 6px 12px; font-size: 13px;">✖ Cancelar</button>
+                                    </div>
+                                ` : ''}
+                            </div>`;
+                        }).join('');
                     }
                 } catch (e) { console.error(e); }
             };
 
+            // --- FUNÇÃO PARA RENDERIZAR CLIENTES (TABELA E CARDS) ---
+            window.carregarListaClientes = async function() {
+                try {
+                    const res = await fetch(apiUrl('/clientes'), {
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
+                    });
+                    if(!res.ok) throw new Error('Falha ao carregar clientes');
+                    const dados = await res.json();
+                    
+                    if(dados.length === 0) {
+                        tbodyCli.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum cliente cadastrado.</td></tr>';
+                        cardsCli.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Nenhum cliente cadastrado.</div>';
+                    } else {
+                        // Tabela
+                        tbodyCli.innerHTML = dados.map(function(c) {
+                            return `<tr>
+                                <td><strong>${escapeHtml(c.nome)}</strong></td>
+                                <td>${escapeHtml(c.email || '—')}</td>
+                                <td>${escapeHtml(c.telefone || '—')}</td>
+                            </tr>`;
+                        }).join('');
+
+                        // Cards Mobile
+                        cardsCli.innerHTML = dados.map(function(c) {
+                            return `
+                            <div class="card-agendamento-mobile">
+                                <div class="card-mobile__linha"><span class="card-mobile__label">Nome:</span> <span class="card-mobile__valor"><strong>${escapeHtml(c.nome)}</strong></span></div>
+                                <div class="card-mobile__linha"><span class="card-mobile__label">E-mail:</span> <span class="card-mobile__valor">${escapeHtml(c.email || '—')}</span></div>
+                                <div class="card-mobile__linha"><span class="card-mobile__label">Telefone:</span> <span class="card-mobile__valor">${escapeHtml(c.telefone || '—')}</span></div>
+                            </div>`;
+                        }).join('');
+                    }
+                } catch(e) { console.error('Erro clientes:', e); }
+            };
+
+            // ... Gráficos ...
             async function desenharGrafico() {
                 try {
                     var res = await fetch(apiUrl('/estatisticas/mensal'), {
@@ -343,63 +402,22 @@
                         data: {
                             labels: mesesNome,
                             datasets: [
-                                {
-                                    type: 'line',
-                                    label: 'Curva de Tendência',
-                                    data: fat,
-                                    borderColor: '#F79E1B',
-                                    backgroundColor: '#F79E1B',
-                                    borderWidth: 3,
-                                    fill: false,
-                                    tension: 0.4,
-                                    pointRadius: 4,
-                                    pointHoverRadius: 6,
-                                    order: 0
-                                },
-                                {
-                                    type: 'bar',
-                                    label: 'Faturamento Anual',
-                                    data: fat,
-                                    backgroundColor: '#4E295B',
-                                    borderColor: '#4E295B',
-                                    borderWidth: 0,
-                                    borderRadius: 6,
-                                    hoverBackgroundColor: '#7d4a90',
-                                    order: 1
-                                }
+                                { type: 'line', label: 'Curva de Tendência', data: fat, borderColor: '#F79E1B', backgroundColor: '#F79E1B', borderWidth: 3, fill: false, tension: 0.4, pointRadius: 4, pointHoverRadius: 6, order: 0 },
+                                { type: 'bar', label: 'Faturamento Anual', data: fat, backgroundColor: '#4E295B', borderColor: '#4E295B', borderWidth: 0, borderRadius: 6, hoverBackgroundColor: '#7d4a90', order: 1 }
                             ]
                         },
                         options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
+                            responsive: true, maintainAspectRatio: false,
                             plugins: {
                                 legend: { display: false },
                                 tooltip: {
-                                    backgroundColor: 'rgba(78, 41, 91, 0.95)',
-                                    titleFont: { family: 'Nunito', size: 14 },
-                                    bodyFont: { family: 'Nunito', size: 14 },
-                                    padding: 12,
-                                    callbacks: {
-                                        label: function (ctx) {
-                                            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ctx.raw);
-                                        }
-                                    }
+                                    backgroundColor: 'rgba(78, 41, 91, 0.95)', titleFont: { family: 'Nunito', size: 14 }, bodyFont: { family: 'Nunito', size: 14 }, padding: 12,
+                                    callbacks: { label: function (ctx) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ctx.raw); } }
                                 }
                             },
                             scales: {
-                                x: {
-                                    grid: { display: false },
-                                    ticks: { font: { family: 'Nunito', weight: 'bold' }, color: '#4E295B' }
-                                },
-                                y: {
-                                    beginAtZero: true,
-                                    border: { display: false },
-                                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
-                                    ticks: {
-                                        font: { family: 'Nunito' }, color: '#888',
-                                        callback: function (value) { return 'R$ ' + value; }
-                                    }
-                                }
+                                x: { grid: { display: false }, ticks: { font: { family: 'Nunito', weight: 'bold' }, color: '#4E295B' } },
+                                y: { beginAtZero: true, border: { display: false }, grid: { color: 'rgba(0, 0, 0, 0.05)' }, ticks: { font: { family: 'Nunito' }, color: '#888', callback: function (value) { return 'R$ ' + value; } } }
                             }
                         }
                     });
@@ -412,37 +430,35 @@
                 try {
                     await carregarListaFiltro();
 
-                    // Card 1: Agendamentos de Hoje
+                    // Card 1
                     var resHoje = await fetch(apiUrl('/dashboard/hoje'), { headers: authHeader });
                     if (resHoje.ok) {
                         var hoje = await resHoje.json();
                         totalAg.textContent = hoje.total;
                         var sub = document.getElementById('subAgendamentos');
                         if (hoje.total === 0) {
-                            sub.textContent = 'Nenhum agendamento hoje';
-                            sub.style.color = '#aaa';
+                            sub.textContent = 'Nenhum agendamento hoje'; sub.style.color = '#aaa';
                         } else {
-                            sub.innerHTML =
-                                '<span style="color:#27ae60; font-weight:700;">✔ ' + hoje.concluidos + ' concluídos</span>' +
-                                ' &nbsp;·&nbsp; ' +
-                                '<span style="color:#e67e22; font-weight:700;">' + hoje.pendentes + ' pendentes</span>';
+                            sub.innerHTML = '<span style="color:#27ae60; font-weight:700;">✔ ' + hoje.concluidos + ' concluídos</span> &nbsp;·&nbsp; <span style="color:#e67e22; font-weight:700;">' + hoje.pendentes + ' pendentes</span>';
                         }
                     }
 
-                    // Card 2: Clientes Cadastradas
+                    // Card 2
                     var resCli = await fetch(apiUrl('/dashboard/clientes'), { headers: authHeader });
                     if (resCli.ok) {
                         var cli = await resCli.json();
                         totalSv.textContent = cli.total;
                     }
 
-                    // Tabela de serviços (mantida)
+                    // SERVIÇOS (Tabela e Cards Mobile)
                     var resS = await fetch(apiUrl('/servicos'));
                     if (resS.ok) {
                         var servicos = await resS.json();
                         if (servicos.length === 0) {
                             tbodySv.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum serviço encontrado.</td></tr>';
+                            cardsSv.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Nenhum serviço encontrado.</div>';
                         } else {
+                            // Tabela
                             tbodySv.innerHTML = servicos.map(function (s) {
                                 return `<tr>
                                     <td><strong>${escapeHtml(s.nome)}</strong></td>
@@ -450,15 +466,24 @@
                                     <td>R$ ${Number(s.preco_padrao).toFixed(2)}</td>
                                 </tr>`;
                             }).join('');
+
+                            // Cards Mobile
+                            cardsSv.innerHTML = servicos.map(function (s) {
+                                return `
+                                <div class="card-agendamento-mobile">
+                                    <div class="card-mobile__linha"><span class="card-mobile__label">Serviço:</span> <span class="card-mobile__valor"><strong>${escapeHtml(s.nome)}</strong></span></div>
+                                    <div class="card-mobile__linha"><span class="card-mobile__label">Duração:</span> <span class="card-mobile__valor">${s.duracao_minutos} min</span></div>
+                                    <div class="card-mobile__linha"><span class="card-mobile__label">Preço:</span> <span class="card-mobile__valor">R$ ${Number(s.preco_padrao).toFixed(2)}</span></div>
+                                </div>`;
+                            }).join('');
                         }
                     }
 
-                    // Card 3: Faturamento
+                    // Card 3
                     var resF = await fetch(apiUrl('/financeiro/resumo'), { headers: authHeader });
                     if (resF.ok) {
                         var fin = await resF.json();
-                        document.getElementById('totalFaturamento').textContent =
-                            fin.faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                        document.getElementById('totalFaturamento').textContent = fin.faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     }
 
                     await desenharGrafico();
@@ -486,7 +511,6 @@
                     });
 
                     if (!res.ok) throw new Error('Falha ao atualizar');
-
                     await carregarDashboard();
                 } catch (e) {
                     console.error(e);
@@ -494,47 +518,11 @@
                 }
             };
 
-            window.carregarListaClientes = async function() {
-                try {
-                    const res = await fetch(apiUrl('/clientes'), {
-                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
-                    });
-                    if(!res.ok) throw new Error('Falha ao carregar clientes');
-                    const dados = await res.json();
-                    const tbody = document.getElementById('tbodyClientes');
-                    
-                    if(dados.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum cliente cadastrado.</td></tr>';
-                    } else {
-                        tbody.innerHTML = dados.map(function(c) {
-                            return `<tr>
-                                <td><strong>${escapeHtml(c.nome)}</strong></td>
-                                <td>${escapeHtml(c.email || '—')}</td>
-                                <td>${escapeHtml(c.telefone || '—')}</td>
-                            </tr>`;
-                        }).join('');
-                    }
-                } catch(e) {
-                    console.error('Erro clientes:', e);
-                }
-            };
-
             carregarDashboard();
 
-            // ── Auto-refresh dos cards ───────────────────────────────────
-            // Atualiza os cards a cada 45 segundos automaticamente
-            var autoRefreshInterval = setInterval(function () {
-                atualizarCardsRapido();
-            }, 45000);
+            var autoRefreshInterval = setInterval(function () { atualizarCardsRapido(); }, 45000);
+            document.addEventListener('visibilitychange', function () { if (!document.hidden) { atualizarCardsRapido(); } });
 
-            // Atualiza imediatamente quando o admin volta para esta aba
-            document.addEventListener('visibilitychange', function () {
-                if (!document.hidden) {
-                    atualizarCardsRapido();
-                }
-            });
-
-            // Atualiza apenas os cards (sem recarregar a tabela e o gráfico)
             async function atualizarCardsRapido() {
                 const token = localStorage.getItem('gundem_token');
                 const authHeader = { 'Authorization': 'Bearer ' + token };
@@ -544,133 +532,92 @@
                         var hoje = await resHoje.json();
                         totalAg.textContent = hoje.total;
                         var sub = document.getElementById('subAgendamentos');
-                        if (hoje.total === 0) {
-                            sub.textContent = 'Nenhum agendamento hoje';
-                            sub.style.color = '#aaa';
-                        } else {
-                            sub.innerHTML =
-                                '<span style="color:#27ae60; font-weight:700;">✔ ' + hoje.concluidos + ' concluídos</span>' +
-                                ' &nbsp;·&nbsp; ' +
-                                '<span style="color:#e67e22; font-weight:700;">' + hoje.pendentes + ' pendentes</span>';
-                        }
+                        if (hoje.total === 0) { sub.textContent = 'Nenhum agendamento hoje'; sub.style.color = '#aaa'; } 
+                        else { sub.innerHTML = '<span style="color:#27ae60; font-weight:700;">✔ ' + hoje.concluidos + ' concluídos</span> &nbsp;·&nbsp; <span style="color:#e67e22; font-weight:700;">' + hoje.pendentes + ' pendentes</span>'; }
                     }
-
                     var resCli = await fetch(apiUrl('/dashboard/clientes'), { headers: authHeader });
-                    if (resCli.ok) {
-                        var cli = await resCli.json();
-                        totalSv.textContent = cli.total;
-                    }
+                    if (resCli.ok) { var cli = await resCli.json(); totalSv.textContent = cli.total; }
 
                     var resF = await fetch(apiUrl('/financeiro/resumo'), { headers: authHeader });
-                    if (resF.ok) {
-                        var fin = await resF.json();
-                        document.getElementById('totalFaturamento').textContent =
-                            fin.faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    }
-                } catch (e) {
-                    console.warn('Auto-refresh falhou silenciosamente:', e);
-                }
+                    if (resF.ok) { var fin = await resF.json(); document.getElementById('totalFaturamento').textContent = fin.faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+                } catch (e) { console.warn('Auto-refresh falhou silenciosamente:', e); }
             }
-            //Script pro botão sanduiche
-        window.toggleMenuMobile = function() {
-            document.getElementById('sidebarMobile').classList.add('aberto');
-            document.getElementById('sidebarOverlay').classList.add('aberto');
-        };
 
-        window.fecharMenuMobile = function() {
-            document.getElementById('sidebarMobile').classList.remove('aberto');
-            document.getElementById('sidebarOverlay').classList.remove('aberto');
-        };
-                    // ==========================================
-        // LÓGICA DO PACOTE SEMANAL
-        // ==========================================
+            window.toggleMenuMobile = function() {
+                document.getElementById('sidebarMobile').classList.add('aberto');
+                document.getElementById('sidebarOverlay').classList.add('aberto');
+            };
+
+            window.fecharMenuMobile = function() {
+                document.getElementById('sidebarMobile').classList.remove('aberto');
+                document.getElementById('sidebarOverlay').classList.remove('aberto');
+            };
+
+            window.abrirModalPacote = async function() {
+                document.getElementById('modalPacote').style.display = 'flex';
+                document.getElementById('statusPacote').style.display = 'none';
+                document.getElementById('formPacote').reset();
             
-        window.abrirModalPacote = async function() {
-            document.getElementById('modalPacote').style.display = 'flex';
-            document.getElementById('statusPacote').style.display = 'none';
-            document.getElementById('formPacote').reset();
-        
-            // Carrega os serviços no select do modal
-            try {
-                const resS = await fetch(apiUrl('/servicos'));
-                const servicos = await resS.json();
-                const sel = document.getElementById('pacoteServico');
-                sel.innerHTML = '<option value="" disabled selected>Selecione um serviço...</option>';
-                servicos.forEach(s => {
-                    sel.innerHTML += `<option value="${s.id_servico}">${s.nome} (R$ ${Number(s.preco_padrao).toFixed(2)})</option>`;
-                });
-            } catch(e) { console.error("Erro ao carregar serviços para o modal de pacotes.", e); }
-        };
-        
-        window.fecharModalPacote = function() {
-            document.getElementById('modalPacote').style.display = 'none';
-        };
-        
-        document.getElementById('formPacote').addEventListener('submit', async function(e) {
-            e.preventDefault();
+                try {
+                    const resS = await fetch(apiUrl('/servicos'));
+                    const servicos = await resS.json();
+                    const sel = document.getElementById('pacoteServico');
+                    sel.innerHTML = '<option value="" disabled selected>Selecione um serviço...</option>';
+                    servicos.forEach(s => {
+                        sel.innerHTML += `<option value="${s.id_servico}">${s.nome} (R$ ${Number(s.preco_padrao).toFixed(2)})</option>`;
+                    });
+                } catch(e) { console.error("Erro ao carregar serviços para o modal de pacotes.", e); }
+            };
             
-            const email = document.getElementById('pacoteEmail').value.trim();
-            const idServico = document.getElementById('pacoteServico').value;
-            const dataHora = document.getElementById('pacoteDataHora').value;
-            const qtdSemanas = document.getElementById('pacoteSemanas').value;
-            const statusEl = document.getElementById('statusPacote');
-            const btnSalvar = document.getElementById('btnSalvarPacote');
-        
-            btnSalvar.disabled = true;
-            statusEl.textContent = 'Buscando cliente...';
-            statusEl.className = 'status-api status-api--info';
-            statusEl.style.display = 'block';
-        
-            try {
-                // 1. Usa a rota existente para buscar a cliente pelo e-mail
-                const resCli = await fetch(apiUrl('/clientes/buscar?email=' + encodeURIComponent(email)));
-                if (!resCli.ok) throw new Error('Cliente não encontrada. Verifique o e-mail digitado.');
-                const cliente = await resCli.json();
+            window.fecharModalPacote = function() {
+                document.getElementById('modalPacote').style.display = 'none';
+            };
             
-                // 2. Envia os dados para a nossa nova rota de lotes (Pacote)
-                statusEl.textContent = 'Verificando a agenda para as próximas ' + qtdSemanas + ' semanas...';
-                const resPacote = await fetch(apiUrl('/agendamentos/pacote'), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + localStorage.getItem('gundem_token')
-                    },
-                    body: JSON.stringify({
-                        id_cliente: cliente.id_cliente,
-                        id_servico: Number(idServico),
-                        data_hora_inicio: dataHora,
-                        qtd_semanas: Number(qtdSemanas)
-                    })
-                });
+            document.getElementById('formPacote').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const email = document.getElementById('pacoteEmail').value.trim();
+                const idServico = document.getElementById('pacoteServico').value;
+                const dataHora = document.getElementById('pacoteDataHora').value;
+                const qtdSemanas = document.getElementById('pacoteSemanas').value;
+                const statusEl = document.getElementById('statusPacote');
+                const btnSalvar = document.getElementById('btnSalvarPacote');
             
-                const body = await resPacote.json();
+                btnSalvar.disabled = true;
+                statusEl.textContent = 'Buscando cliente...';
+                statusEl.className = 'status-api status-api--info';
+                statusEl.style.display = 'block';
+            
+                try {
+                    const resCli = await fetch(apiUrl('/clientes/buscar?email=' + encodeURIComponent(email)));
+                    if (!resCli.ok) throw new Error('Cliente não encontrada. Verifique o e-mail digitado.');
+                    const cliente = await resCli.json();
                 
-                if (!resPacote.ok) {
-                    // Se houver conflito, mostramos o erro que veio do backend!
-                    throw new Error(body.erro || 'Erro ao agendar pacote.');
+                    statusEl.textContent = 'Verificando a agenda para as próximas ' + qtdSemanas + ' semanas...';
+                    const resPacote = await fetch(apiUrl('/agendamentos/pacote'), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + localStorage.getItem('gundem_token')
+                        },
+                        body: JSON.stringify({ id_cliente: cliente.id_cliente, id_servico: Number(idServico), data_hora_inicio: dataHora, qtd_semanas: Number(qtdSemanas) })
+                    });
+                
+                    const body = await resPacote.json();
+                    if (!resPacote.ok) throw new Error(body.erro || 'Erro ao agendar pacote.');
+                
+                    statusEl.textContent = '✔ ' + body.mensagem;
+                    statusEl.className = 'status-api status-api--ok';
+                    await carregarListaFiltro();
+                    await carregarDashboard();
+                    setTimeout(fecharModalPacote, 2500);
+                } catch(err) {
+                    statusEl.textContent = err.message;
+                    statusEl.className = 'status-api status-api--erro';
+                } finally {
+                    btnSalvar.disabled = false;
                 }
-            
-                // Sucesso!
-                statusEl.textContent = '✔ ' + body.mensagem;
-                statusEl.className = 'status-api status-api--ok';
-                
-                // Atualiza a tabela do painel de fundo para mostrar as novas marcações
-                await carregarListaFiltro();
-                await carregarDashboard();
-            
-                // Fecha a janela após 2.5 segundos
-                setTimeout(fecharModalPacote, 2500);
-            
-            } catch(err) {
-                statusEl.textContent = err.message;
-                statusEl.className = 'status-api status-api--erro';
-            } finally {
-                btnSalvar.disabled = false;
-            }
-        });
+            });
         })();
-
     </script>
 </body>
-
 </html>
