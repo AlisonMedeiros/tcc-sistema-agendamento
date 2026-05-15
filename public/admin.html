@@ -349,29 +349,73 @@
                     const dados = await res.json();
                     
                     if(dados.length === 0) {
-                        tbodyCli.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum cliente cadastrado.</td></tr>';
+                        tbodyCli.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum cliente cadastrado.</td></tr>';
                         cardsCli.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Nenhum cliente cadastrado.</div>';
                     } else {
-                        // Tabela
+                        // Tabela (Desktop) - Com botão X
                         tbodyCli.innerHTML = dados.map(function(c) {
                             return `<tr>
                                 <td><strong>${escapeHtml(c.nome)}</strong></td>
                                 <td>${escapeHtml(c.email || '—')}</td>
                                 <td>${escapeHtml(c.telefone || '—')}</td>
+                                <td style="text-align: center;">
+                                    <button onclick="excluirCliente(${c.id_cliente}, '${escapeHtml(c.nome)}')" class="btn-acao btn-cancelar" style="padding: 5px 10px; font-size: 14px;" title="Excluir Cliente">✖</button>
+                                </td>
                             </tr>`;
                         }).join('');
 
-                        // Cards Mobile
+                        // Cards Mobile - Com botão X
                         cardsCli.innerHTML = dados.map(function(c) {
                             return `
                             <div class="card-agendamento-mobile">
                                 <div class="card-mobile__linha"><span class="card-mobile__label">Nome:</span> <span class="card-mobile__valor"><strong>${escapeHtml(c.nome)}</strong></span></div>
                                 <div class="card-mobile__linha"><span class="card-mobile__label">E-mail:</span> <span class="card-mobile__valor">${escapeHtml(c.email || '—')}</span></div>
                                 <div class="card-mobile__linha"><span class="card-mobile__label">Telefone:</span> <span class="card-mobile__valor">${escapeHtml(c.telefone || '—')}</span></div>
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; display: flex; justify-content: flex-end;">
+                                    <button onclick="excluirCliente(${c.id_cliente}, '${escapeHtml(c.nome)}')" class="btn-acao btn-cancelar" style="padding: 6px 12px; font-size: 13px;">✖ Excluir</button>
+                                </div>
                             </div>`;
                         }).join('');
                     }
                 } catch(e) { console.error('Erro clientes:', e); }
+            };
+
+            // --- NOVA FUNÇÃO PARA EXCLUIR O CLIENTE ---
+            window.excluirCliente = async function(id, nome) {
+                // Pergunta de confirmação de segurança
+                if(!confirm('Atenção: Tem certeza que deseja excluir a cliente ' + nome + '?')) return;
+                
+                var statusEl = document.getElementById('statusApi');
+                setStatus('Excluindo...', 'info');
+                window.scrollTo(0, 0); // Sobe a tela para o admin ver o status
+                
+                try {
+                    const res = await fetch(apiUrl('/clientes/' + id), {
+                        method: 'DELETE',
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
+                    });
+                    
+                    const body = await res.json();
+                    
+                    if(!res.ok) throw new Error(body.erro || 'Erro ao excluir');
+                    
+                    // Se deu certo, mostra sucesso e recarrega os painéis
+                    setStatus(body.mensagem, 'ok');
+                    await carregarListaClientes();
+                    
+                    // Atualizamos o Dashboard para o número de clientes baixar na hora!
+                    const authHeader = { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') };
+                    const resCli = await fetch(apiUrl('/dashboard/clientes'), { headers: authHeader });
+                    if (resCli.ok) { 
+                        var cli = await resCli.json(); 
+                        document.getElementById('totalServicos').textContent = cli.total; 
+                    }
+
+                    setTimeout(() => { statusEl.style.display = 'none'; }, 3500);
+                } catch(e) {
+                    console.error(e);
+                    setStatus(e.message, 'erro');
+                }
             };
 
             // ... Gráficos ...
