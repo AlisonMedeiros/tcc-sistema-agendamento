@@ -79,6 +79,8 @@
     </style>
 
     <main class="admin-main">
+        <div id="statusApi" class="status-api" role="status" style="display:none; margin: 15px 20px;">Carregando dados...</div>
+
         <section id="admin-cards" class="admin-cards aba-painel ativa">
             <div class="admin-card">
                 <h3>📅 Agendamentos de Hoje</h3>
@@ -144,7 +146,6 @@
                     <button onclick="carregarListaFiltro()" style="width: auto; padding: 0 16px; border-radius: 8px; background-color: var(--roxo-principal); color: white; height: 38px; font-size: 14px;">Filtrar</button>
                     <button onclick="document.getElementById('filtroDataAgendamento').value=''; document.getElementById('filtroStatusAgendamento').value=''; carregarListaFiltro()" style="width: auto; padding: 0 16px; border-radius: 8px; background-color: #999; color: white; height: 38px; font-size: 14px; box-shadow: none;">Limpar</button>
                 </div>
-                <div id="statusApi" class="status-api" role="status">Carregando dados...</div>
                 
                 <div class="table-responsive tabela-responsiva">
                     <table class="table-admin" id="tableAgendamentos">
