@@ -190,26 +190,47 @@ app.post('/clientes', async (req, res) => {
         res.status(500).json({ erro: 'Erro ao cadastrar cliente.' });
     }
 });
-/** Excluir um Cliente (Pelo Admin) */
+/** Excluir um Cliente (E sua conta de acesso) */
 app.delete('/clientes/:id', verificarToken, async (req, res) => {
     // Apenas admins podem deletar
     if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
     
     const { id } = req.params;
+    const clientPool = await db.connect(); // Puxa uma conexão para fazer a transação dupla
 
     try {
-        await db.query('DELETE FROM clientes WHERE id_cliente = $1', [id]);
-        res.json({ mensagem: 'Cliente excluída com sucesso!' });
+        await clientPool.query('BEGIN'); // Inicia a transação
+
+        // 1. Descobre se essa cliente tem uma conta de login (id_usuario) atrelada
+        const resCli = await clientPool.query('SELECT id_usuario FROM clientes WHERE id_cliente = $1', [id]);
+        const id_usuario = (resCli.rows.length > 0) ? resCli.rows[0].id_usuario : null;
+
+        // 2. Tenta deletar a cliente primeiro (Se tiver agendamento, vai dar erro aqui e pular pro CATCH)
+        await clientPool.query('DELETE FROM clientes WHERE id_cliente = $1', [id]);
+
+        // 3. Se deu certo deletar a cliente, e ela tinha login, deleta a conta de login (usuário) também!
+        if (id_usuario) {
+            await clientPool.query('DELETE FROM usuarios WHERE id_usuario = $1', [id_usuario]);
+        }
+
+        await clientPool.query('COMMIT'); // Confirma as duas exclusões
+        res.json({ mensagem: 'Cliente e conta de acesso excluídos com sucesso!' });
+        
     } catch (erro) {
-        // O código 23503 é o alerta de Chave Estrangeira (Foreign Key Constraint) do PostgreSQL
+        await clientPool.query('ROLLBACK'); // Desfaz tudo se der erro
+        
+        // O código 23503 é o alerta de Chave Estrangeira do PostgreSQL
         if (erro.code === '23503') {
-            res.status(400).json({ erro: 'Não é possível excluir! Esta cliente possui agendamentos no histórico e apagá-la corromperia as finanças do salão.' });
+            res.status(400).json({ erro: 'Não é possível excluir! Esta cliente possui histórico financeiro e apagá-la corromperia as métricas do salão.' });
         } else {
             console.error(erro);
             res.status(500).json({ erro: 'Erro interno ao excluir cliente.' });
         }
+    } finally {
+        clientPool.release(); // Devolve a conexão
     }
 });
+
 /** Relatório de Gastos por Cliente (Admin) */
 app.get('/clientes/:id/relatorio', verificarToken, async (req, res) => {
     // Apenas admins podem pedir este relatório
