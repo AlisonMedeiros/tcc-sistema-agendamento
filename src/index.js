@@ -190,6 +190,26 @@ app.post('/clientes', async (req, res) => {
         res.status(500).json({ erro: 'Erro ao cadastrar cliente.' });
     }
 });
+/** Excluir um Cliente (Pelo Admin) */
+app.delete('/clientes/:id', verificarToken, async (req, res) => {
+    // Apenas admins podem deletar
+    if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
+    
+    const { id } = req.params;
+
+    try {
+        await db.query('DELETE FROM clientes WHERE id_cliente = $1', [id]);
+        res.json({ mensagem: 'Cliente excluída com sucesso!' });
+    } catch (erro) {
+        // O código 23503 é o alerta de Chave Estrangeira (Foreign Key Constraint) do PostgreSQL
+        if (erro.code === '23503') {
+            res.status(400).json({ erro: 'Não é possível excluir! Esta cliente possui agendamentos no histórico e apagá-la corromperia as finanças do salão.' });
+        } else {
+            console.error(erro);
+            res.status(500).json({ erro: 'Erro interno ao excluir cliente.' });
+        }
+    }
+});
 
 
 /**
