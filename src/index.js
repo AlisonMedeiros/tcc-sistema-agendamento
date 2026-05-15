@@ -210,6 +210,33 @@ app.delete('/clientes/:id', verificarToken, async (req, res) => {
         }
     }
 });
+/** Relatório de Gastos por Cliente (Admin) */
+app.get('/clientes/:id/relatorio', verificarToken, async (req, res) => {
+    // Apenas admins podem pedir este relatório
+    if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
+    
+    const { id } = req.params;
+
+    try {
+        // Busca agendamentos concluídos ou confirmados, com preço
+        const resultado = await db.query(`
+            SELECT 
+                a.data_hora_inicio, 
+                s.nome AS servico, 
+                COALESCE(l.valor, s.preco_padrao) AS valor
+            FROM agendamentos a
+            JOIN servicos s ON a.id_servico = s.id_servico
+            LEFT JOIN lancamentos_financeiros l ON a.id_agendamento = l.id_agendamento
+            WHERE a.id_cliente = $1 AND a.status IN ('confirmado', 'concluido')
+            ORDER BY a.data_hora_inicio DESC
+        `, [id]);
+        
+        res.json(resultado.rows);
+    } catch (erro) {
+        console.error(erro);
+        res.status(500).json({ erro: 'Erro ao gerar relatório da cliente.' });
+    }
+});
 
 
 /**

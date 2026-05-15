@@ -352,26 +352,28 @@
                         tbodyCli.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum cliente cadastrado.</td></tr>';
                         cardsCli.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Nenhum cliente cadastrado.</div>';
                     } else {
-                        // Tabela (Desktop) - Com botão X
+                        // Tabela (Desktop) - Com botão Relatório e X
                         tbodyCli.innerHTML = dados.map(function(c) {
                             return `<tr>
                                 <td><strong>${escapeHtml(c.nome)}</strong></td>
                                 <td>${escapeHtml(c.email || '—')}</td>
                                 <td>${escapeHtml(c.telefone || '—')}</td>
-                                <td style="text-align: center;">
+                                <td style="text-align: center; display: flex; justify-content: center; gap: 5px;">
+                                    <button onclick="gerarRelatorio(${c.id_cliente}, '${escapeHtml(c.nome)}')" class="btn-acao" style="background:#4E295B; color:white; padding: 5px 10px; font-size: 14px; border-radius:5px;" title="Gerar Relatório">📄 Relatório</button>
                                     <button onclick="excluirCliente(${c.id_cliente}, '${escapeHtml(c.nome)}')" class="btn-acao btn-cancelar" style="padding: 5px 10px; font-size: 14px;" title="Excluir Cliente">✖</button>
                                 </td>
                             </tr>`;
                         }).join('');
 
-                        // Cards Mobile - Com botão X
+                        // Cards Mobile - Com botão Relatório e X
                         cardsCli.innerHTML = dados.map(function(c) {
                             return `
                             <div class="card-agendamento-mobile">
                                 <div class="card-mobile__linha"><span class="card-mobile__label">Nome:</span> <span class="card-mobile__valor"><strong>${escapeHtml(c.nome)}</strong></span></div>
                                 <div class="card-mobile__linha"><span class="card-mobile__label">E-mail:</span> <span class="card-mobile__valor">${escapeHtml(c.email || '—')}</span></div>
                                 <div class="card-mobile__linha"><span class="card-mobile__label">Telefone:</span> <span class="card-mobile__valor">${escapeHtml(c.telefone || '—')}</span></div>
-                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; display: flex; justify-content: flex-end;">
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 8px;">
+                                    <button onclick="gerarRelatorio(${c.id_cliente}, '${escapeHtml(c.nome)}')" class="btn-acao" style="background:#4E295B; color:white; padding: 6px 12px; font-size: 13px; border-radius:5px;">📄 Relatório</button>
                                     <button onclick="excluirCliente(${c.id_cliente}, '${escapeHtml(c.nome)}')" class="btn-acao btn-cancelar" style="padding: 6px 12px; font-size: 13px;">✖ Excluir</button>
                                 </div>
                             </div>`;
@@ -415,6 +417,100 @@
                 } catch(e) {
                     console.error(e);
                     setStatus(e.message, 'erro');
+                }
+            };
+
+            // --- NOVA FUNÇÃO PARA GERAR RELATÓRIO DE GASTOS ---
+            window.gerarRelatorio = async function(id, nome) {
+                var statusEl = document.getElementById('statusApi');
+                setStatus('Gerando relatório...', 'info');
+                
+                try {
+                    const res = await fetch(apiUrl('/clientes/' + id + '/relatorio'), {
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
+                    });
+                    if (!res.ok) throw new Error('Falha ao buscar dados do relatório.');
+                    const dados = await res.json();
+                    
+                    if (dados.length === 0) {
+                        alert('A cliente ' + nome + ' ainda não possui serviços pagos/concluídos no histórico.');
+                        statusEl.style.display = 'none';
+                        return;
+                    }
+
+                    // Calcula o total e monta as linhas
+                    let total = 0;
+                    let linhas = dados.map(d => {
+                        total += Number(d.valor);
+                        let dataFormatada = new Date(d.data_hora_inicio).toLocaleDateString('pt-BR');
+                        return `<tr>
+                            <td style="padding: 10px; border-bottom: 1px solid #ddd;">${dataFormatada}</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #ddd;">${escapeHtml(d.servico)}</td>
+                            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">R$ ${Number(d.valor).toFixed(2)}</td>
+                        </tr>`;
+                    }).join('');
+
+                    // Cria o visual do relatório (Página Branca Profissional)
+                    let htmlRelatorio = `
+                    <html>
+                    <head>
+                        <title>Extrato de Serviços - ${nome}</title>
+                        <style>
+                            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; max-width: 800px; margin: auto; }
+                            .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #4E295B; padding-bottom: 20px; }
+                            .header h1 { color: #4E295B; margin: 0; font-size: 24px; }
+                            .header p { color: #666; margin: 5px 0 0 0; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                            th { background: #4E295B; color: white; padding: 12px; text-align: left; }
+                            th:last-child { text-align: right; }
+                            .total-box { margin-top: 30px; padding: 15px; background: #f9f9f9; border-left: 5px solid #F79E1B; font-size: 18px; font-weight: bold; text-align: right; }
+                            .btn-imprimir { margin-top: 30px; padding: 12px 24px; background: #4E295B; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; display: block; margin-left: auto; margin-right: auto; }
+                            .btn-imprimir:hover { background: #3a1f44; }
+                            
+                            /* Esconde o botão na hora de imprimir o papel ou salvar o PDF */
+                            @media print { 
+                                .btn-imprimir { display: none; } 
+                                body { padding: 0; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>Extrato de Consumo - Estúdio Gündem</h1>
+                            <p><strong>Cliente:</strong> ${nome}</p>
+                            <p><strong>Emitido em:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
+                        </div>
+                        
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data do Serviço</th>
+                                    <th>Procedimento</th>
+                                    <th>Valor Investido</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${linhas}
+                            </tbody>
+                        </table>
+                        
+                        <div class="total-box">
+                            Total Investido no Estúdio: R$ ${total.toFixed(2)}
+                        </div>
+                        
+                        <button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / Salvar como PDF</button>
+                    </body>
+                    </html>`;
+
+                    // Abre uma nova janela invisível e joga o HTML lá dentro!
+                    let janelaRelatorio = window.open('', '_blank');
+                    janelaRelatorio.document.write(htmlRelatorio);
+                    janelaRelatorio.document.close();
+                    
+                    statusEl.style.display = 'none';
+                } catch(e) {
+                    console.error(e);
+                    setStatus('Erro ao gerar relatório.', 'erro');
                 }
             };
 
