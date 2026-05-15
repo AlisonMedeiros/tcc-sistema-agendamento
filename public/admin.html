@@ -254,9 +254,22 @@
             };
 
             function setStatus(msg, tipo) {
-                statusEl.textContent = msg;
+                // Configura as cores (erro, ok, info)
                 statusEl.className = 'status-api' + (tipo ? ' status-api--' + tipo : '');
-                statusEl.style.display = 'block';
+                
+                // Transforma a caixinha em Flexbox para o texto ficar à esquerda e o X à direita
+                statusEl.style.display = 'flex';
+                statusEl.style.alignItems = 'center';
+                statusEl.style.justifyContent = 'space-between';
+                
+                // Injeta a mensagem e o botão de fechar (com uma ação simples para sumir)
+                statusEl.innerHTML = `
+                    <span>${msg}</span>
+                    <button onclick="this.parentElement.style.display='none'" 
+                            style="background: transparent; border: none; font-size: 16px; cursor: pointer; color: inherit; opacity: 0.6; padding: 0 0 0 15px; font-weight: bold;">
+                        ✖
+                    </button>
+                `;
             }
 
             function formatarData(iso) {
