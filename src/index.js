@@ -2,7 +2,6 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const db = require('./db');
-const { enviarMensagem } = require('./whatsapp-client');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -528,26 +527,6 @@ app.post('/agendar', verificarToken, async (req, res) => {
         }
 
         await client.query('COMMIT');
-        
-        // --- INTEGRAÇÃO WHATSAPP ---
-        try {
-            const cliData = await db.query('SELECT nome, telefone FROM clientes WHERE id_cliente = $1', [id_cliente]);
-            const srvData = await db.query('SELECT nome FROM servicos WHERE id_servico = $1', [id_servico]);
-            
-            if (cliData.rows.length > 0 && cliData.rows[0].telefone) {
-                const nomeCli = cliData.rows[0].nome.split(' ')[0];
-                const nomeSrv = srvData.rows.length > 0 ? srvData.rows[0].nome : 'Serviço';
-                
-                const dataFormatada = inicio.toLocaleString('pt-BR', {
-                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                });
-                const textoMensagem = `Olá ${nomeCli}! Seu agendamento de *${nomeSrv}* para ${dataFormatada} foi confirmado com sucesso. Te esperamos no salão Güdem!`;
-                enviarMensagem(cliData.rows[0].telefone, textoMensagem);
-            }
-        } catch (errWhatsApp) {
-            console.error('Erro ao tentar enviar WhatsApp pós agendamento:', errWhatsApp);
-        }
-
         res.status(201).json({ mensagem: 'Agendamento realizado.', agendamento: ag.rows[0] });
     } catch (erro) {
         await client.query('ROLLBACK');
