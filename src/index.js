@@ -5,6 +5,7 @@ const db = require('./db');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const nodemailer = require('nodemailer');
 const SECRET_KEY = process.env.JWT_SECRET || 'gudem_secreto_super_seguro_2026';
 
 // Middleware de Autenticação JWT
@@ -810,17 +811,50 @@ app.post('/recuperar', async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM usuarios WHERE email = $1', [email.toLowerCase().trim()]);
         if (result.rows.length === 0) {
-            return res.json({ mensagem: 'Se esse e-mail estiver cadastrado, o link de recuperação foi gerado.' });
+            return res.json({ mensagem: 'Se esse e-mail estiver cadastrado, as instruções de recuperação foram enviadas para ele.' });
         }
 
+        const usuario = result.rows[0];
         const tokenRecuperacao = jwt.sign({ email: email.toLowerCase().trim() }, SECRET_KEY, { expiresIn: '15m' });
 
-        res.json({
-            mensagem: 'No mundo real isso iria para o seu e-mail.',
-            linkSimulado: `/nova-senha.html?token=${tokenRecuperacao}`
+        const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+        const linkRecuperacao = `${frontendUrl}/nova-senha.html?token=${tokenRecuperacao}`;
+
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: process.env.SMTP_PORT || 465,
+            secure: process.env.SMTP_PORT == 465,
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            }
         });
 
+        const mailOptions = {
+            from: `"Sistema de Agendamento" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: 'Recuperação de Senha',
+            text: `Olá ${usuario.nome},\n\nVocê solicitou a recuperação de senha.\nPor favor, acesse o link abaixo para criar uma nova senha (válido por 15 minutos):\n\n${linkRecuperacao}\n\nCaso não tenha sido você, apenas ignore este e-mail.`,
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                    <h2>Recuperação de Senha</h2>
+                    <p>Olá <strong>${usuario.nome}</strong>,</p>
+                    <p>Você solicitou a recuperação de senha no nosso sistema. Clique no botão abaixo para definir uma nova senha:</p>
+                    <div style="margin: 30px 0;">
+                        <a href="${linkRecuperacao}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Redefinir Minha Senha</a>
+                    </div>
+                    <p>Este link é válido por 15 minutos.</p>
+                    <p><em>Se você não solicitou a troca de senha, pode ignorar este e-mail.</em></p>
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        res.json({ mensagem: 'As instruções de recuperação foram enviadas para o seu e-mail!' });
+
     } catch (e) {
+        console.error('Erro ao enviar e-mail de recuperação:', e);
         res.status(500).json({ erro: 'Erro interno ao processar recuperação.' });
     }
 });
