@@ -11,7 +11,10 @@
 </head>
 <body>
     <div class="app-container">
-        <h2>Meu Perfil</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Meu Perfil</h2>
+            <button id="btnEditarAtivar" type="button" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--roxo-principal);" title="Editar Informações">✏️</button>
+        </div>
         <p class="subtitulo">Atualize suas informações</p>
 
         <div id="statusPerfil" class="status-api" style="display: none;" role="status"></div>
@@ -26,13 +29,7 @@
             <label class="field-label" for="telefone" id="labelTelefone">Telefone (WhatsApp)</label>
             <input type="tel" id="telefone" name="telefone" placeholder="(11) 99999-9999">
 
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
-                <p style="font-size: 14px; color: var(--roxo-principal); margin-bottom: 10px; font-weight: bold;">Alterar Senha (Opcional)</p>
-                <label class="field-label" for="senha">Nova Senha</label>
-                <input type="password" id="senha" name="senha" placeholder="Deixe em branco para não alterar">
-            </div>
-
-            <button type="submit" id="btnSalvarPerfil" style="margin-top: 15px; margin-bottom: 12px;">Salvar Alterações</button>
+            <button type="submit" id="btnSalvarPerfil" style="margin-top: 15px; margin-bottom: 12px; display: none;">Salvar Alterações</button>
             <button type="button" id="btnVoltar" style="background: transparent; border: 1px solid var(--roxo-principal); color: var(--roxo-principal);">Voltar</button>
         </form>
     </div>
@@ -87,21 +84,26 @@
 
             carregarPerfil();
 
+            // Desabilitar campos inicialmente
+            var inputsPerfil = form.querySelectorAll('input');
+            inputsPerfil.forEach(function(i) { i.disabled = true; });
+
+            // Habilitar edição
+            document.getElementById('btnEditarAtivar').addEventListener('click', function() {
+                inputsPerfil.forEach(function(i) { i.disabled = false; });
+                btnSalvar.style.display = 'block';
+                document.getElementById('nome').focus();
+            });
+
             // Salvar
             form.addEventListener('submit', async function (ev) {
                 ev.preventDefault();
                 var nome = document.getElementById('nome').value.trim();
                 var email = document.getElementById('email').value.trim();
                 var telefone = document.getElementById('telefone').value.trim();
-                var senha = document.getElementById('senha').value.trim();
 
                 if (!nome || !email) {
                     setStatus('Nome e e-mail são obrigatórios.', 'erro');
-                    return;
-                }
-
-                if (senha && senha.length < 6) {
-                    setStatus('A nova senha deve ter pelo menos 6 caracteres.', 'erro');
                     return;
                 }
 
@@ -128,7 +130,10 @@
                     
                     // Atualiza cache local
                     localStorage.setItem('gundem_user_nome', nome);
-                    document.getElementById('senha').value = '';
+                    
+                    // Desabilita de volta após salvar
+                    inputsPerfil.forEach(function(i) { i.disabled = true; });
+                    btnSalvar.style.display = 'none';
 
                 } catch (e) {
                     console.error(e);
