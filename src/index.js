@@ -817,7 +817,7 @@ app.post('/recuperar', async (req, res) => {
         `, [email.toLowerCase().trim()]);
 
         if (result.rows.length === 0) {
-            return res.json({ mensagem: 'Se os dados estiverem corretos, as instruções de recuperação foram geradas.' });
+            return res.status(404).json({ erro: 'Usuário não encontrado com este e-mail.' });
         }
 
         const usuario = result.rows[0];
@@ -825,8 +825,7 @@ app.post('/recuperar', async (req, res) => {
         // Dupla checagem: Se for cliente comum, o telefone precisa bater.
         if (usuario.tipo === 'cliente') {
             if (!usuario.telefone || usuario.telefone !== telefone.trim()) {
-                // Falha silenciosamente por segurança (para não avisar o hacker)
-                return res.json({ mensagem: 'Se os dados estiverem corretos, as instruções de recuperação foram geradas.' });
+                return res.status(400).json({ erro: 'O telefone informado não confere com o cadastro.' });
             }
         }
         const tokenRecuperacao = jwt.sign({ email: email.toLowerCase().trim() }, SECRET_KEY, { expiresIn: '15m' });
