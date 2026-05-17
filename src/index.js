@@ -827,7 +827,10 @@ app.post('/recuperar', async (req, res) => {
             auth: {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS
-            }
+            },
+            connectionTimeout: 4000, // 4 segundos de limite para conectar
+            greetingTimeout: 4000,
+            socketTimeout: 4000
         });
 
         const mailOptions = {
@@ -849,12 +852,20 @@ app.post('/recuperar', async (req, res) => {
             `
         };
 
-        await transporter.sendMail(mailOptions);
-
-        res.json({ mensagem: 'As instruções de recuperação foram enviadas para o seu e-mail!' });
+        try {
+            await transporter.sendMail(mailOptions);
+            res.json({ mensagem: 'As instruções de recuperação foram enviadas para o seu e-mail!' });
+        } catch (mailError) {
+            console.error('Falha no envio de e-mail (Render SMTP bloqueado). Usando fallback na tela.', mailError.message);
+            // Fallback: Retorna o link simulado para exibir na tela do front-end
+            res.json({ 
+                mensagem: 'Não foi possível enviar o e-mail, mas você pode usar o link seguro abaixo:',
+                linkSimulado: linkRecuperacao 
+            });
+        }
 
     } catch (e) {
-        console.error('Erro ao enviar e-mail de recuperação:', e);
+        console.error('Erro geral ao processar recuperação:', e);
         res.status(500).json({ erro: 'Erro interno ao processar recuperação.' });
     }
 });
