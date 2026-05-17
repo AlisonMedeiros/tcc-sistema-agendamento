@@ -805,16 +805,30 @@ app.post('/login', async (req, res) => {
 });
 
 app.post('/recuperar', async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ erro: 'O e-mail é obrigatório.' });
+    const { email, telefone } = req.body;
+    if (!email || !telefone) return res.status(400).json({ erro: 'O e-mail e o telefone são obrigatórios.' });
 
     try {
-        const result = await db.query('SELECT * FROM usuarios WHERE email = $1', [email.toLowerCase().trim()]);
+        const result = await db.query(`
+            SELECT u.*, c.telefone 
+            FROM usuarios u
+            LEFT JOIN clientes c ON c.id_usuario = u.id_usuario
+            WHERE u.email = $1
+        `, [email.toLowerCase().trim()]);
+
         if (result.rows.length === 0) {
-            return res.json({ mensagem: 'Se esse e-mail estiver cadastrado, as instruções de recuperação foram enviadas para ele.' });
+            return res.json({ mensagem: 'Se os dados estiverem corretos, as instruções de recuperação foram geradas.' });
         }
 
         const usuario = result.rows[0];
+
+        // Dupla checagem: Se for cliente comum, o telefone precisa bater.
+        if (usuario.tipo === 'cliente') {
+            if (!usuario.telefone || usuario.telefone !== telefone.trim()) {
+                // Falha silenciosamente por segurança (para não avisar o hacker)
+                return res.json({ mensagem: 'Se os dados estiverem corretos, as instruções de recuperação foram geradas.' });
+            }
+        }
         const tokenRecuperacao = jwt.sign({ email: email.toLowerCase().trim() }, SECRET_KEY, { expiresIn: '15m' });
 
         const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
