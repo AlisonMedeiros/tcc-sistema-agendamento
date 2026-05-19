@@ -825,44 +825,88 @@ app.post('/login', async (req, res) => {
 });
 
 app.post('/recuperar', async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ erro: 'O e-mail é obrigatório.' });
+    const { email, telefone } = req.body;
+    if (!email || !telefone) return res.status(400).json({ erro: 'O e-mail e o telefone são obrigatórios.' });
 
     try {
-        const result = await db.query('SELECT * FROM usuarios WHERE email = $1', [email.toLowerCase().trim()]);
+        const result = await db.query(`
+            SELECT u.*, c.telefone 
+            FROM usuarios u
+            LEFT JOIN clientes c ON c.id_usuario = u.id_usuario
+            WHERE u.email = $1
+        `, [email.toLowerCase().trim()]);
+
         if (result.rows.length === 0) {
-            return res.json({ mensagem: 'Se esse e-mail estiver cadastrado, o link de recuperação foi gerado.' });
+            return res.status(404).json({ erro: 'Usuário não encontrado com este e-mail.' });
         }
 
-        const tokenRecuperacao = jwt.sign({ email: email.toLowerCase().trim() }, SECRET_KEY, { expiresIn: '15m' });
+        const usuario = result.rows[0];
 
-        res.json({
-            mensagem: 'No mundo real isso iria para o seu e-mail.',
-            linkSimulado: `/nova-senha.html?token=${tokenRecuperacao}`
+        // Bloqueio explícito para a conta de Administrador
+        if (usuario.tipo === 'admin') {
+            return res.status(403).json({ erro: 'Por segurança, contas de administrador não podem redefinir a senha por esta tela.' });
+        }
+
+        // Dupla checagem para clientes: O telefone digitado precisa bater com o cadastrado.
+        if (!usuario.telefone || usuario.telefone !== telefone.trim()) {
+            return res.status(400).json({ erro: 'O Telefone ou E-mail informado não confere com o cadastro.' });
+        }
+
+        // Gera o token de 15 minutos com JWT
+        const tokenRecuperacao = jwt.sign({ email: email.toLowerCase().trim() }, SECRET_KEY, { expiresIn: '15m' });
+        const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+        const linkRecuperacao = `${frontendUrl}/nova-senha.html?token=${tokenRecuperacao}`;
+
+        // Se você tiver a API Key do Resend configurada no seu .env
+        if (process.env.RESEND_API_KEY) {
+            try {
+                // Dispara uma requisição HTTP POST comum (Porta 443 - Totalmente liberada no Render)
+                const resEmail = await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        from: 'Gündem <onboarding@resend.dev>',
+                        to: email,
+                        subject: 'Recuperação de Senha - Gündem',
+                        html: `
+                            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                                <h2>Recuperação de Senha - Gündem</h2>
+                                <p>Olá <strong>${usuario.nome}</strong>,</p>
+                                <p>Você solicitou a recuperação de senha no nosso sistema. Clique no botão abaixo para definir uma nova senha:</p>
+                                <div style="margin: 30px 0;">
+                                    <a href="${linkRecuperacao}" style="background-color: #4E295B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Redefinir Minha Senha</a>
+                                </div>
+                                <p>Este link é válido por 15 minutos.</p>
+                                <p><em>Se você não solicitou a troca de senha, pode ignorar este e-mail.</em></p>
+                            </div>
+                        `
+                    })
+                });
+
+                if (resEmail.ok) {
+                    return res.json({ mensagem: 'As instruções de recuperação foram enviadas para o seu e-mail!' });
+                } else {
+                    console.warn('API de e-mail respondeu com erro, ativando Fallback de Segurança.');
+                }
+            } catch (errApi) {
+                console.error('Erro de rede na API de e-mail, ativando Fallback de Segurança:', errApi.message);
+            }
+        }
+
+        // --- FALLBACK DE SEGURANÇA PARA O DIA DO TCC ---
+        // Se o e-mail falhar ou não estiver configurado, o link é devolvido de forma segura na tela do frontend
+        // Isso evita travamentos e garante que vocês consigam apresentar o fluxo completo na banca!
+        return res.json({
+            mensagem: 'Simulação de Ambiente: Link seguro gerado com sucesso para apresentação!',
+            linkSimulado: linkRecuperacao
         });
 
     } catch (e) {
+        console.error('Erro geral ao processar recuperação:', e);
         res.status(500).json({ erro: 'Erro interno ao processar recuperação.' });
-    }
-});
-
-app.post('/resetar-senha', async (req, res) => {
-    const { token, novaSenha } = req.body;
-    
-    if (!token || !novaSenha || novaSenha.length < 6) {
-        return res.status(400).json({ erro: 'Token inválido ou senha muito curta (mínimo 6 caracteres).' });
-    }
-
-    try {
-        const decoded = jwt.verify(token, SECRET_KEY);
-        const email = decoded.email;
-
-        const senhaHash = await bcrypt.hash(novaSenha, 10);
-        await db.query('UPDATE usuarios SET senha_hash = $1 WHERE email = $2', [senhaHash, email]);
-
-        res.json({ mensagem: 'Senha atualizada com sucesso!' });
-    } catch (e) {
-        return res.status(400).json({ erro: 'Token inválido ou expirado. Solicite a recuperação novamente.' });
     }
 });
 
