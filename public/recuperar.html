@@ -16,7 +16,6 @@
         <div id="statusRec" class="status-api" style="display: none;" role="status"></div>
 
         <div id="boxSenha" style="display: none; background: #eef2f3; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
-            <p style="font-size: 13px; color: #555; margin-bottom: 5px;">(Simulação TCC: O link que "chegaria" no seu e-mail)</p>
             <a id="linkTexto" href="#" style="color: var(--roxo-principal); font-weight: bold; word-break: break-all;"></a>
         </div>
 
@@ -24,7 +23,10 @@
             <label class="field-label" for="email">E-mail Cadastrado</label>
             <input type="email" id="email" required placeholder="Digite seu e-mail">
 
-            <button type="submit" id="btnRecuperar">Gerar Nova Senha</button>
+            <label class="field-label" for="telefone" style="margin-top: 15px;">Telefone Cadastrado (Apenas números)</label>
+            <input type="tel" id="telefone" required placeholder="Ex: 11999999999">
+
+            <button type="submit" id="btnRecuperar" style="margin-top: 20px;">Gerar Nova Senha</button>
             <a href="login.html" style="display: block; text-align: center; color: var(--roxo-principal); font-size: 14px; text-decoration: none; margin-top: 15px;">Voltar ao Login</a>
         </form>
     </div>
@@ -47,9 +49,10 @@
             form.addEventListener('submit', async function (ev) {
                 ev.preventDefault();
                 var email = document.getElementById('email').value.trim();
+                var telefone = document.getElementById('telefone').value.trim();
                 
-                if (!email) {
-                    setStatus('Informe o e-mail.', 'erro');
+                if (!email || !telefone) {
+                    setStatus('Informe o e-mail e o telefone.', 'erro');
                     return;
                 }
 
@@ -60,7 +63,7 @@
                     var res = await fetch(apiUrl('/recuperar'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: email })
+                        body: JSON.stringify({ email: email, telefone: telefone })
                     });
                     
                     var body = await res.json().catch(function() { return {}; });

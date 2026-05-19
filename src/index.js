@@ -2,10 +2,10 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const db = require('./db');
-const { enviarMensagem } = require('./whatsapp-client');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const nodemailer = require('nodemailer');
 const SECRET_KEY = process.env.JWT_SECRET || 'gudem_secreto_super_seguro_2026';
 
 // Middleware de Autenticação JWT
@@ -105,7 +105,7 @@ app.get('/servicos', async (req, res) => {
     try {
         const mostrarTodos = req.query.todos === 'true';
         let querySql = `SELECT id_servico, nome, descricao, duracao_minutos, preco_padrao, ativo FROM servicos`;
-        
+
         if (!mostrarTodos) {
             querySql += ` WHERE ativo = TRUE`;
         }
@@ -123,7 +123,7 @@ app.get('/servicos', async (req, res) => {
 app.delete('/clientes/:id', verificarToken, async (req, res) => {
     // Apenas admins podem deletar
     if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
-    
+
     const { id } = req.params;
     const clientPool = await db.connect();
 
@@ -146,7 +146,7 @@ app.delete('/clientes/:id', verificarToken, async (req, res) => {
                  SET nome = 'Cliente Removido (LGPD)', telefone = NULL, email = NULL, id_usuario = NULL 
                  WHERE id_cliente = $1`, [id]
             );
-            
+
             // Apaga a conta de acesso para ela não conseguir mais logar
             if (id_usuario) {
                 await clientPool.query('DELETE FROM usuarios WHERE id_usuario = $1', [id_usuario]);
@@ -154,11 +154,11 @@ app.delete('/clientes/:id', verificarToken, async (req, res) => {
 
             await clientPool.query('COMMIT');
             return res.json({ mensagem: 'Cliente anonimizado! Dados apagados, mas métricas financeiras foram mantidas.' });
-            
+
         } else {
             // HARD DELETE: Não tem histórico, pode apagar permanentemente
             await clientPool.query('DELETE FROM clientes WHERE id_cliente = $1', [id]);
-            
+
             if (id_usuario) {
                 await clientPool.query('DELETE FROM usuarios WHERE id_usuario = $1', [id_usuario]);
             }
@@ -234,7 +234,7 @@ app.post('/clientes', async (req, res) => {
 app.delete('/clientes/:id', verificarToken, async (req, res) => {
     // Apenas admins podem deletar
     if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
-    
+
     const { id } = req.params;
     const clientPool = await db.connect(); // Puxa uma conexão para fazer a transação dupla
 
@@ -255,10 +255,10 @@ app.delete('/clientes/:id', verificarToken, async (req, res) => {
 
         await clientPool.query('COMMIT'); // Confirma as duas exclusões
         res.json({ mensagem: 'Cliente e conta de acesso excluídos com sucesso!' });
-        
+
     } catch (erro) {
         await clientPool.query('ROLLBACK'); // Desfaz tudo se der erro
-        
+
         // O código 23503 é o alerta de Chave Estrangeira do PostgreSQL
         if (erro.code === '23503') {
             res.status(400).json({ erro: 'Não é possível excluir! Esta cliente possui histórico financeiro e apagá-la corromperia as métricas do salão.' });
@@ -275,7 +275,7 @@ app.delete('/clientes/:id', verificarToken, async (req, res) => {
 app.get('/clientes/:id/relatorio', verificarToken, async (req, res) => {
     // Apenas admins podem pedir este relatório
     if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
-    
+
     const { id } = req.params;
 
     try {
@@ -291,7 +291,7 @@ app.get('/clientes/:id/relatorio', verificarToken, async (req, res) => {
             WHERE a.id_cliente = $1 AND a.status IN ('confirmado', 'concluido')
             ORDER BY a.data_hora_inicio DESC
         `, [id]);
-        
+
         res.json(resultado.rows);
     } catch (erro) {
         console.error(erro);
@@ -395,7 +395,7 @@ app.get('/agendamentos', verificarToken, async (req, res) => {
             INNER JOIN servicos s ON s.id_servico = a.id_servico
         `;
         const params = [];
-        
+
         if (dataFiltro) {
             query += ` WHERE CAST(a.data_hora_inicio AS DATE) = $1::date`;
             params.push(dataFiltro);
@@ -447,7 +447,7 @@ app.post('/agendar', verificarToken, async (req, res) => {
     // AJUSTE DE FUSO HORÁRIO E VIAGEM NO TEMPO
     let strData = String(data_hora_inicio);
     if (!strData.includes('Z') && !strData.includes('-03:00')) {
-        if (strData.length === 16) strData += ':00'; 
+        if (strData.length === 16) strData += ':00';
         strData += '-03:00';
     }
     const inicio = new Date(strData);
@@ -472,7 +472,7 @@ app.post('/agendar', verificarToken, async (req, res) => {
                 id_cliente = cliReq.rows[0].id_cliente;
             } else {
                 const ins = await client.query(
-                    'INSERT INTO clientes (nome, telefone, email, id_usuario) VALUES ($1, $2, $3, $4) RETURNING id_cliente', 
+                    'INSERT INTO clientes (nome, telefone, email, id_usuario) VALUES ($1, $2, $3, $4) RETURNING id_cliente',
                     [nome, tel, mail, req.usuario.id]
                 );
                 id_cliente = ins.rows[0].id_cliente;
@@ -528,26 +528,6 @@ app.post('/agendar', verificarToken, async (req, res) => {
         }
 
         await client.query('COMMIT');
-        
-        // --- INTEGRAÇÃO WHATSAPP ---
-        try {
-            const cliData = await db.query('SELECT nome, telefone FROM clientes WHERE id_cliente = $1', [id_cliente]);
-            const srvData = await db.query('SELECT nome FROM servicos WHERE id_servico = $1', [id_servico]);
-            
-            if (cliData.rows.length > 0 && cliData.rows[0].telefone) {
-                const nomeCli = cliData.rows[0].nome.split(' ')[0];
-                const nomeSrv = srvData.rows.length > 0 ? srvData.rows[0].nome : 'Serviço';
-                
-                const dataFormatada = inicio.toLocaleString('pt-BR', {
-                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                });
-                const textoMensagem = `Olá ${nomeCli}! Seu agendamento de *${nomeSrv}* para ${dataFormatada} foi confirmado com sucesso. Te esperamos no salão Güdem!`;
-                enviarMensagem(cliData.rows[0].telefone, textoMensagem);
-            }
-        } catch (errWhatsApp) {
-            console.error('Erro ao tentar enviar WhatsApp pós agendamento:', errWhatsApp);
-        }
-
         res.status(201).json({ mensagem: 'Agendamento realizado.', agendamento: ag.rows[0] });
     } catch (erro) {
         await client.query('ROLLBACK');
@@ -569,7 +549,7 @@ app.post('/agendamentos/pacote', async (req, res) => {
     // AJUSTE DE FUSO E VIAGEM NO TEMPO PARA PACOTES:
     let strData = String(data_hora_inicio);
     if (!strData.includes('Z') && !strData.includes('-03:00')) {
-        if (strData.length === 16) strData += ':00'; 
+        if (strData.length === 16) strData += ':00';
         strData += '-03:00';
     }
     const dataBaseValida = new Date(strData);
@@ -588,7 +568,7 @@ app.post('/agendamentos/pacote', async (req, res) => {
         const duracao = resServico.rows[0].duracao_minutos;
 
         // Utilizamos a data validada e com fuso correto
-        let dataBase = dataBaseValida; 
+        let dataBase = dataBaseValida;
         let agendamentosCriados = [];
 
         for (let i = 0; i < qtd_semanas; i++) {
@@ -642,12 +622,12 @@ app.put('/agendamentos/:id/status', verificarToken, async (req, res) => {
             await client.query('DELETE FROM lancamentos_financeiros WHERE id_agendamento = $1', [id]);
         } else if (status === 'concluido' || status === 'confirmado') {
             const checkFin = await client.query('SELECT id_lancamento FROM lancamentos_financeiros WHERE id_agendamento = $1', [id]);
-            
+
             if (checkFin.rows.length === 0) {
                 const srv = await client.query(
                     'SELECT s.preco_padrao FROM agendamentos a JOIN servicos s ON a.id_servico = s.id_servico WHERE a.id_agendamento = $1', [id]
                 );
-                
+
                 if (srv.rows.length > 0) {
                     const preco = srv.rows[0].preco_padrao;
                     await client.query(
@@ -728,7 +708,7 @@ app.post('/registro', async (req, res) => {
         const id_novo_usuario = ins_usuario.rows[0].id_usuario;
 
         const verificaTelefone = await clientePool.query('SELECT id_cliente FROM clientes WHERE telefone = $1', [telefone.trim()]);
-        
+
         if (verificaTelefone.rows.length > 0) {
             await clientePool.query(
                 `UPDATE clientes SET id_usuario = $1, email = $2, nome = $3 WHERE telefone = $4`,
@@ -761,10 +741,10 @@ app.get('/perfil', verificarToken, async (req, res) => {
              LEFT JOIN clientes c ON c.id_usuario = u.id_usuario 
              WHERE u.id_usuario = $1`, [id_usuario]
         );
-        if (result.rows.length === 0) return res.status(404).json({erro: 'Usuário não encontrado.'});
+        if (result.rows.length === 0) return res.status(404).json({ erro: 'Usuário não encontrado.' });
         res.json(result.rows[0]);
-    } catch(err) {
-        res.status(500).json({erro: 'Erro ao buscar perfil.'});
+    } catch (err) {
+        res.status(500).json({ erro: 'Erro ao buscar perfil.' });
     }
 });
 
@@ -772,13 +752,13 @@ app.put('/perfil', verificarToken, async (req, res) => {
     const { nome, email, telefone, senha } = req.body;
     const id_usuario = req.usuario.id;
     const pool = await db.connect();
-    
+
     try {
         await pool.query('BEGIN');
-        
+
         let queryUser = `UPDATE usuarios SET nome = $1, email = $2`;
         let paramsUser = [nome, email, id_usuario];
-        
+
         if (senha && senha.length >= 6) {
             const senhaHash = await bcrypt.hash(senha, 10);
             queryUser += `, senha_hash = $4`;
@@ -787,21 +767,21 @@ app.put('/perfil', verificarToken, async (req, res) => {
         } else {
             queryUser += ` WHERE id_usuario = $3`;
         }
-        
+
         await pool.query(queryUser, paramsUser);
-        
+
         const cliCheck = await pool.query('SELECT id_cliente FROM clientes WHERE id_usuario = $1', [id_usuario]);
         if (cliCheck.rows.length > 0) {
-            await pool.query('UPDATE clientes SET nome = $1, email = $2, telefone = $3 WHERE id_usuario = $4', 
+            await pool.query('UPDATE clientes SET nome = $1, email = $2, telefone = $3 WHERE id_usuario = $4',
                 [nome, email, telefone || null, id_usuario]);
         }
-        
+
         await pool.query('COMMIT');
         res.json({ mensagem: 'Perfil atualizado com sucesso!' });
-    } catch(err) {
+    } catch (err) {
         await pool.query('ROLLBACK');
         console.error(err);
-        res.status(500).json({erro: 'Erro ao atualizar perfil.'});
+        res.status(500).json({ erro: 'Erro ao atualizar perfil.' });
     } finally {
         pool.release();
     }
@@ -827,6 +807,8 @@ app.post('/login', async (req, res) => {
 app.post('/recuperar', async (req, res) => {
     const { email, telefone } = req.body;
     if (!email || !telefone) return res.status(400).json({ erro: 'O e-mail e o telefone são obrigatórios.' });
+    const { email, telefone } = req.body;
+    if (!email || !telefone) return res.status(400).json({ erro: 'O e-mail e o telefone são obrigatórios.' });
 
     try {
         const result = await db.query(`
@@ -836,7 +818,27 @@ app.post('/recuperar', async (req, res) => {
             WHERE u.email = $1
         `, [email.toLowerCase().trim()]);
 
+        const result = await db.query(`
+            SELECT u.*, c.telefone 
+            FROM usuarios u
+            LEFT JOIN clientes c ON c.id_usuario = u.id_usuario
+            WHERE u.email = $1
+        `, [email.toLowerCase().trim()]);
+
         if (result.rows.length === 0) {
+            return res.status(404).json({ erro: 'Usuário não encontrado com este e-mail.' });
+        }
+
+        const usuario = result.rows[0];
+
+        // Bloqueio explícito para a conta de Administrador
+        if (usuario.tipo === 'admin') {
+            return res.status(403).json({ erro: 'Por segurança, contas de administrador não podem redefinir a senha por esta tela.' });
+        }
+
+        // Dupla checagem para clientes: O telefone digitado precisa bater com o cadastrado.
+        if (!usuario.telefone || usuario.telefone !== telefone.trim()) {
+            return res.status(400).json({ erro: 'O Telefone ou E-mail informado não confere com o cadastro.' });
             return res.status(404).json({ erro: 'Usuário não encontrado com este e-mail.' });
         }
 
