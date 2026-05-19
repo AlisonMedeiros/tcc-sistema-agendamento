@@ -5,7 +5,6 @@ const db = require('./db');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const nodemailer = require('nodemailer');
 const SECRET_KEY = process.env.JWT_SECRET || 'gudem_secreto_super_seguro_2026';
 
 // Middleware de Autenticação JWT
@@ -807,17 +806,8 @@ app.post('/login', async (req, res) => {
 app.post('/recuperar', async (req, res) => {
     const { email, telefone } = req.body;
     if (!email || !telefone) return res.status(400).json({ erro: 'O e-mail e o telefone são obrigatórios.' });
-    const { email, telefone } = req.body;
-    if (!email || !telefone) return res.status(400).json({ erro: 'O e-mail e o telefone são obrigatórios.' });
 
     try {
-        const result = await db.query(`
-            SELECT u.*, c.telefone 
-            FROM usuarios u
-            LEFT JOIN clientes c ON c.id_usuario = u.id_usuario
-            WHERE u.email = $1
-        `, [email.toLowerCase().trim()]);
-
         const result = await db.query(`
             SELECT u.*, c.telefone 
             FROM usuarios u
@@ -839,30 +829,17 @@ app.post('/recuperar', async (req, res) => {
         // Dupla checagem para clientes: O telefone digitado precisa bater com o cadastrado.
         if (!usuario.telefone || usuario.telefone !== telefone.trim()) {
             return res.status(400).json({ erro: 'O Telefone ou E-mail informado não confere com o cadastro.' });
-            return res.status(404).json({ erro: 'Usuário não encontrado com este e-mail.' });
         }
-
-        const usuario = result.rows[0];
-
-        // Bloqueio explícito para a conta de Administrador
-        if (usuario.tipo === 'admin') {
-            return res.status(403).json({ erro: 'Por segurança, contas de administrador não podem redefinir a senha por esta tela.' });
-        }
-
-        // Dupla checagem para clientes: O telefone digitado precisa bater com o cadastrado.
-        if (!usuario.telefone || usuario.telefone !== telefone.trim()) {
-            return res.status(400).json({ erro: 'O Telefone ou E-mail informado não confere com o cadastro.' });
-        }
-
-        // Gera o token de 15 minutos com JWT
+        
         const tokenRecuperacao = jwt.sign({ email: email.toLowerCase().trim() }, SECRET_KEY, { expiresIn: '15m' });
+
         const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
         const linkRecuperacao = `${frontendUrl}/nova-senha.html?token=${tokenRecuperacao}`;
 
-        // Se você tiver a API Key do Resend configurada no seu .env
+        // Integração HTTP com a API do Resend (Substitui o SMTP)
         if (process.env.RESEND_API_KEY) {
             try {
-                // Dispara uma requisição HTTP POST comum (Porta 443 - Totalmente liberada no Render)
+                // A função fetch nativa do Node faz a ponte diretamente pela porta 443 (Liberada no Render)
                 const resEmail = await fetch('https://api.resend.com/emails', {
                     method: 'POST',
                     headers: {
@@ -870,12 +847,12 @@ app.post('/recuperar', async (req, res) => {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        from: 'Gündem <onboarding@resend.dev>',
-                        to: email,
+                        from: 'Gündem App <onboarding@resend.dev>',
+                        to: email, // Lembre-se: em contas grátis, este e-mail deve ser o mesmo usado para criar a conta no Resend
                         subject: 'Recuperação de Senha - Gündem',
                         html: `
                             <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                                <h2>Recuperação de Senha - Gündem</h2>
+                                <h2>Recuperação de Senha</h2>
                                 <p>Olá <strong>${usuario.nome}</strong>,</p>
                                 <p>Você solicitou a recuperação de senha no nosso sistema. Clique no botão abaixo para definir uma nova senha:</p>
                                 <div style="margin: 30px 0;">
@@ -891,18 +868,18 @@ app.post('/recuperar', async (req, res) => {
                 if (resEmail.ok) {
                     return res.json({ mensagem: 'As instruções de recuperação foram enviadas para o seu e-mail!' });
                 } else {
-                    console.warn('API de e-mail respondeu com erro, ativando Fallback de Segurança.');
+                    const errorData = await resEmail.json();
+                    console.error('Falha na API do Resend:', errorData);
+                    // Se a API falhar, deixamos cair para o Fallback abaixo
                 }
             } catch (errApi) {
-                console.error('Erro de rede na API de e-mail, ativando Fallback de Segurança:', errApi.message);
+                console.error('Erro de rede ao contactar o Resend:', errApi.message);
             }
         }
 
-        // --- FALLBACK DE SEGURANÇA PARA O DIA DO TCC ---
-        // Se o e-mail falhar ou não estiver configurado, o link é devolvido de forma segura na tela do frontend
-        // Isso evita travamentos e garante que vocês consigam apresentar o fluxo completo na banca!
+        // --- FALLBACK DE SEGURANÇA (Se não tiver chave ou a API falhar) ---
         return res.json({
-            mensagem: 'Simulação de Ambiente: Link seguro gerado com sucesso para apresentação!',
+            mensagem: 'Simulação: E-mail gerado com sucesso (Modo de Apresentação Ativo):',
             linkSimulado: linkRecuperacao
         });
 
