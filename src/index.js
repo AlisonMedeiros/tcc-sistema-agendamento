@@ -847,7 +847,7 @@ app.post('/recuperar', async (req, res) => {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        from: 'Gündem App <onboarding@resend.dev>',
+                        from: 'Gündem <contato@gundem.com.br>',
                         to: email, // Lembre-se: em contas grátis, este e-mail deve ser o mesmo usado para criar a conta no Resend
                         subject: 'Recuperação de Senha - Gündem',
                         html: `
