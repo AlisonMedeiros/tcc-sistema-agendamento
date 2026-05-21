@@ -682,52 +682,69 @@ app.get('/debug-users', async (req, res) => {
 app.post('/registro', async (req, res) => {
     const { nome, email, telefone, senha } = req.body;
 
-    if (!nome || !email || !telefone || !senha) return res.status(400).json({ erro: 'Todos os campos são obrigatórios.' });
-    if (senha.length < 6) return res.status(400).json({ erro: 'A senha deve ter pelo menos 6 caracteres.' });
-
-    const emailTratado = email.toLowerCase().trim();
-    const clientePool = await db.connect();
+    if (!nome || !email || !telefone || !senha) {
+        return res.status(400).json({ erro: 'Todos os campos são obrigatórios.' });
+    }
 
     try {
-        await clientePool.query('BEGIN');
-
-        const verificaEmail = await clientePool.query('SELECT id_usuario FROM usuarios WHERE email = $1', [emailTratado]);
-        if (verificaEmail.rows.length > 0) {
-            await clientePool.query('ROLLBACK');
-            return res.status(409).json({ erro: 'Este e-mail já está em uso.' });
+        const checkUser = await db.query('SELECT id_usuario FROM usuarios WHERE email = $1', [email.toLowerCase().trim()]);
+        if (checkUser.rows.length > 0) {
+            return res.status(400).json({ erro: 'Este e-mail já está em uso.' });
         }
 
-        const saltRounds = 10;
-        const senhaHash = await bcrypt.hash(senha, saltRounds);
+        const salt = await bcrypt.genSalt(10);
+        const hashSenha = await bcrypt.hash(senha, salt);
 
-        const ins_usuario = await clientePool.query(
-            `INSERT INTO usuarios (nome, email, senha_hash, tipo) VALUES ($1, $2, $3, 'cliente') RETURNING id_usuario`,
-            [nome.trim(), emailTratado, senhaHash]
+        // O email_verificado já é FALSE por padrão no banco, mas declaramos para garantia
+        const result = await db.query(
+            'INSERT INTO usuarios (nome, email, senha_hash, tipo, email_verificado) VALUES ($1, $2, $3, $4, FALSE) RETURNING id_usuario',
+            [nome, email.toLowerCase().trim(), hashSenha, 'cliente']
         );
-        const id_novo_usuario = ins_usuario.rows[0].id_usuario;
+        const novoUsuarioId = result.rows[0].id_usuario;
 
-        const verificaTelefone = await clientePool.query('SELECT id_cliente FROM clientes WHERE telefone = $1', [telefone.trim()]);
+        await db.query(
+            'INSERT INTO clientes (id_usuario, telefone) VALUES ($1, $2)',
+            [novoUsuarioId, telefone.trim()]
+        );
 
-        if (verificaTelefone.rows.length > 0) {
-            await clientePool.query(
-                `UPDATE clientes SET id_usuario = $1, email = $2, nome = $3 WHERE telefone = $4`,
-                [id_novo_usuario, emailTratado, nome.trim(), telefone.trim()]
-            );
-        } else {
-            await clientePool.query(
-                `INSERT INTO clientes (nome, telefone, email, id_usuario) VALUES ($1, $2, $3, $4)`,
-                [nome.trim(), telefone.trim(), emailTratado, id_novo_usuario]
-            );
+        // --- GERAÇÃO DO LINK DE ATIVAÇÃO ---
+        const tokenAtivacao = jwt.sign({ email: email.toLowerCase().trim() }, SECRET_KEY, { expiresIn: '24h' });
+        const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+        const linkAtivacao = `${frontendUrl}/ativar?token=${tokenAtivacao}`;
+
+        // --- DISPARO DE E-MAIL COM RESEND ---
+        if (process.env.RESEND_API_KEY) {
+            await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    from: 'Gündem <contato@gundem.com.br>',
+                    to: email, 
+                    subject: 'Bem-vinda ao Gündem! Confirme seu cadastro',
+                    html: `
+                        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; text-align: center;">
+                            <h2>Olá, ${nome}! 💅</h2>
+                            <p>Falta pouco para você poder agendar seus horários com a Débora.</p>
+                            <p>Clique no botão abaixo para confirmar seu e-mail e liberar seu acesso:</p>
+                            <div style="margin: 30px 0;">
+                                <a href="${linkAtivacao}" style="background-color: #4E295B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Ativar Minha Conta</a>
+                            </div>
+                            <p>Este link é válido por 24 horas.</p>
+                        </div>
+                    `
+                })
+            });
         }
 
-        await clientePool.query('COMMIT');
-        res.status(201).json({ mensagem: 'Conta criada com sucesso.' });
-    } catch (erro) {
-        await clientePool.query('ROLLBACK');
-        console.error('Erro no registro:', erro);
-        res.status(500).json({ erro: 'Erro interno ao realizar cadastro.' });
-    } finally {
-        clientePool.release();
+        // NÃO RETORNA MAIS O TOKEN DE LOGIN! Apenas uma mensagem.
+        return res.status(201).json({ mensagem: 'Conta criada! Enviamos um link de ativação para a sua caixa de e-mail.' });
+
+    } catch (e) {
+        console.error('Erro no registro:', e);
+        res.status(500).json({ erro: 'Erro interno ao criar conta.' });
     }
 });
 
@@ -795,6 +812,9 @@ app.post('/login', async (req, res) => {
 
         const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
         if (!senhaValida) return res.status(401).json({ erro: 'Credenciais inválidas.' });
+        if (usuario.email_verificado === false) {
+            return res.status(403).json({ erro: 'Por favor, acesse seu e-mail e clique no link de ativação antes de entrar.' });
+        }
 
         const token = jwt.sign({ id: usuario.id_usuario, tipo: usuario.tipo }, SECRET_KEY, { expiresIn: '8h' });
         res.json({ usuario: { id: usuario.id_usuario, nome: usuario.nome, tipo: usuario.tipo }, token });
@@ -929,7 +949,27 @@ app.post('/resetar-senha', async (req, res) => {
         return res.status(500).json({ erro: 'Erro interno ao atualizar a senha.' });
     }
 });
+// ATIVAR CONTA (Abre quando a cliente clica no e-mail)
+app.get('/ativar', async (req, res) => {
+    const token = req.query.token;
+    if (!token) return res.send('<h3>Link inválido.</h3>');
 
+    try {
+        const decoded = jwt.verify(token, SECRET_KEY);
+        const emailToken = decoded.email;
+
+        // Muda a coluna no banco para TRUE
+        await db.query('UPDATE usuarios SET email_verificado = TRUE WHERE email = $1', [emailToken]);
+
+        const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+        
+        // Redireciona a cliente direto para o login
+        res.redirect(`${frontendUrl}/login.html?ativado=true`);
+
+    } catch (error) {
+        res.send('<h3>O link expirou ou é inválido. Cadastre-se novamente ou peça suporte.</h3>');
+    }
+});
 
 // Inicialização do Servidor e Arquivos Estáticos
 const pastaPublica = path.resolve(__dirname, '../public');

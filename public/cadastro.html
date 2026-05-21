@@ -81,13 +81,19 @@
                     if (!res.ok) {
                         throw new Error(body.erro || 'Falha ao realizar cadastro.');
                     }
-
-                    setStatus('Conta criada com sucesso! Faça login para continuar.', 'ok');
+                    // Pega a mensagem que o Back-end enviou (que já avisa sobre o e-mail)
+                    setStatus('✔ ' + (body.mensagem || 'Conta criada! Verifique sua caixa de e-mail.'), 'ok');
+                    
+                    // Esconde o botão para evitar cliques duplos enquanto ela lê a mensagem
+                    btnSalvar.style.display = 'none';
+                    
                     form.reset();
 
+                    // Aumentamos o tempo de redirecionamento de 2.5s para 5s,
+                    // para dar tempo da cliente ler a mensagem de que precisa ir ao e-mail!
                     setTimeout(function() {
                         window.location.href = 'login.html';
-                    }, 2500);
+                    }, 5000);
 
                 } catch (e) {
                     console.error(e);
