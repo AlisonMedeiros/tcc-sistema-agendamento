@@ -702,8 +702,8 @@ app.post('/registro', async (req, res) => {
         const novoUsuarioId = result.rows[0].id_usuario;
 
         await db.query(
-            'INSERT INTO clientes (id_usuario, telefone) VALUES ($1, $2)',
-            [novoUsuarioId, telefone.trim()]
+            'INSERT INTO clientes (nome, email, telefone, id_usuario) VALUES ($1, $2, $3, $4)',
+            [nome, email.toLowerCase().trim(), telefone.trim(), novoUsuarioId]
         );
 
         // --- GERAÇÃO DO LINK DE ATIVAÇÃO ---
