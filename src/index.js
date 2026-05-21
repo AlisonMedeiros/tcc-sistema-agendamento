@@ -888,6 +888,47 @@ app.post('/recuperar', async (req, res) => {
         res.status(500).json({ erro: 'Erro interno ao processar recuperação.' });
     }
 });
+// RESETAR SENHA (Recebe o token do e-mail e a nova senha)
+app.post('/resetar-senha', async (req, res) => {
+    const { token, novaSenha } = req.body;
+
+    if (!token || !novaSenha) {
+        return res.status(400).json({ erro: 'Token e nova senha são obrigatórios.' });
+    }
+
+    try {
+        // 1. Verifica se o token é válido e não expirou (15 minutos)
+        const decoded = jwt.verify(token, SECRET_KEY);
+        const emailToken = decoded.email;
+
+        // 2. Criptografa a nova senha com bcrypt
+        const salt = await bcrypt.genSalt(10);
+        const hashSenha = await bcrypt.hash(novaSenha, salt);
+
+        // 3. Atualiza a senha no banco de dados
+        const result = await db.query(
+            'UPDATE usuarios SET senha = $1 WHERE email = $2 RETURNING id_usuario',
+            [hashSenha, emailToken]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ erro: 'Usuário não encontrado no sistema.' });
+        }
+
+        // 4. Retorna sucesso!
+        return res.json({ mensagem: 'Senha atualizada com sucesso! Redirecionando...' });
+
+    } catch (error) {
+        console.error('Erro ao resetar senha:', error);
+        
+        // Tratamento específico se o tempo do token acabou
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({ erro: 'O link de recuperação expirou. Solicite um novo e-mail.' });
+        }
+        
+        return res.status(500).json({ erro: 'Erro interno ao atualizar a senha.' });
+    }
+});
 
 
 // Inicialização do Servidor e Arquivos Estáticos
