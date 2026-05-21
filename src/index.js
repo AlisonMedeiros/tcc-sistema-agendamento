@@ -858,7 +858,7 @@ app.post('/recuperar', async (req, res) => {
         `, [email.toLowerCase().trim()]);
 
         if (result.rows.length === 0) {
-            return res.status(404).json({ erro: 'Usuário não encontrado com este e-mail.' });
+            return res.status(404).json({ erro: 'O e-mail informado não consta em nosso sistema.' });
         }
 
         const usuario = result.rows[0];
