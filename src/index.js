@@ -695,7 +695,6 @@ app.post('/registro', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashSenha = await bcrypt.hash(senha, salt);
 
-        // O email_verificado já é FALSE por padrão no banco, mas declaramos para garantia
         const result = await db.query(
             'INSERT INTO usuarios (nome, email, senha_hash, tipo, email_verificado) VALUES ($1, $2, $3, $4, FALSE) RETURNING id_usuario',
             [nome, email.toLowerCase().trim(), hashSenha, 'cliente']
@@ -712,38 +711,61 @@ app.post('/registro', async (req, res) => {
         const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
         const linkAtivacao = `${frontendUrl}/ativar?token=${tokenAtivacao}`;
 
-        // --- DISPARO DE E-MAIL COM RESEND ---
+        let emailEnviadoComSucesso = false;
+
+        // --- DISPARO DE E-MAIL PROTEGIDO (Não derruba o sistema se falhar) ---
         if (process.env.RESEND_API_KEY) {
-            await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    from: 'Gündem <contato@gundem.com.br>',
-                    to: email, 
-                    subject: 'Bem-vinda ao Gündem! Confirme seu cadastro',
-                    html: `
-                        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; text-align: center;">
-                            <h2>Olá, ${nome}! 💅</h2>
-                            <p>Falta pouco para você poder agendar seus horários com a Débora.</p>
-                            <p>Clique no botão abaixo para confirmar seu e-mail e liberar seu acesso:</p>
-                            <div style="margin: 30px 0;">
-                                <a href="${linkAtivacao}" style="background-color: #4E295B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Ativar Minha Conta</a>
+            try {
+                const resEmail = await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        from: 'Gündem <contato@gundem.com.br>',
+                        to: email, 
+                        subject: 'Bem-vinda ao Gündem! Confirme seu cadastro',
+                        html: `
+                            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; text-align: center;">
+                                <h2>Olá, ${nome}! 💅</h2>
+                                <p>Falta pouco para você poder agendar seus horários com a Débora.</p>
+                                <p>Clique no botão abaixo para confirmar seu e-mail e liberar seu acesso:</p>
+                                <div style="margin: 30px 0;">
+                                    <a href="${linkAtivacao}" style="background-color: #4E295B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Ativar My Conta</a>
+                                </div>
+                                <p>Este link é válido por 24 horas.</p>
                             </div>
-                            <p>Este link é válido por 24 horas.</p>
-                        </div>
-                    `
-                })
+                        `
+                    })
+                });
+
+                if (resEmail.ok) {
+                    emailEnviadoComSucesso = true;
+                } else {
+                    const errorData = await resEmail.json().catch(() => ({}));
+                    console.error('Falha na API do Resend no Registro:', errorData);
+                }
+            } catch (errApi) {
+                console.error('Erro de rede no envio de e-mail do registro:', errApi.message);
+            }
+        }
+
+        // Resposta baseada no sucesso do gateway de e-mail
+        if (emailEnviadoComSucesso) {
+            return res.status(201).json({ 
+                mensagem: 'Conta criada! Enviamos um link de ativação para a sua caixa de e-mail.' 
             });
         }
 
-        // NÃO RETORNA MAIS O TOKEN DE LOGIN! Apenas uma mensagem.
-        return res.status(201).json({ mensagem: 'Conta criada! Enviamos um link de ativação para a sua caixa de e-mail.' });
+        // --- FALLBACK DE SEGURANÇA (Se o domínio gundem.com.br ainda não estiver pronto) ---
+        return res.status(201).json({ 
+            mensagem: 'Conta criada com sucesso! (Modo de Teste Ativo)',
+            linkSimulado: linkAtivacao
+        });
 
     } catch (e) {
-        console.error('Erro no registro:', e);
+        console.error('Erro geral no registro:', e);
         res.status(500).json({ erro: 'Erro interno ao criar conta.' });
     }
 });
