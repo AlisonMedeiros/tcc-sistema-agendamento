@@ -907,7 +907,7 @@ app.post('/resetar-senha', async (req, res) => {
 
         // 3. Atualiza a senha no banco de dados
         const result = await db.query(
-            'UPDATE usuarios SET senha = $1 WHERE email = $2 RETURNING id_usuario',
+            'UPDATE usuarios SET senha-hash = $1 WHERE email = $2 RETURNING id_usuario',
             [hashSenha, emailToken]
         );
 
