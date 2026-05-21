@@ -732,7 +732,7 @@ app.post('/registro', async (req, res) => {
                                 <p>Falta pouco para você poder agendar seus horários com a Débora.</p>
                                 <p>Clique no botão abaixo para confirmar seu e-mail e liberar seu acesso:</p>
                                 <div style="margin: 30px 0;">
-                                    <a href="${linkAtivacao}" style="background-color: #4E295B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Ativar My Conta</a>
+                                    <a href="${linkAtivacao}" style="background-color: #4E295B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Ativar minha Conta</a>
                                 </div>
                                 <p>Este link é válido por 24 horas.</p>
                             </div>
