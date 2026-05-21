@@ -1,10 +1,6 @@
 /**
  * Script de seed: cria os usuários iniciais com senhas criptografadas com bcrypt.
  * Execute com: npm run seed
- * 
- * Usuários criados:
- *   Admin:   admin@gudem.com   / senha: 85651286
- *   Cliente: silene@email.com  / senha: 123456
  */
 
 const bcrypt = require('bcrypt');
@@ -12,11 +8,6 @@ const db = require('../src/db');
 require('dotenv').config();
 
 const SALT_ROUNDS = 10;
-
-const usuarios = [
-    { nome: 'Débora Braga',     email: 'admin@gudem.com',   senha: '123456',   tipo: 'admin'   },
-    { nome: 'Silene Malaquias', email: 'silene@email.com',  senha: '123456',   tipo: 'cliente' },
-];
 
 async function seed() {
     console.log('🌱 Iniciando seed de usuários...\n');

@@ -101,6 +101,7 @@
                 var nome = document.getElementById('nome').value.trim();
                 var email = document.getElementById('email').value.trim();
                 var telefone = document.getElementById('telefone').value.trim();
+                var senha = document.getElementById('senha') ? document.getElementById('senha').value.trim() : null;
 
                 if (!nome || !email) {
                     setStatus('Nome e e-mail são obrigatórios.', 'erro');

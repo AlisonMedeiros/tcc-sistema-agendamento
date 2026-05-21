@@ -119,7 +119,7 @@ app.get('/servicos', async (req, res) => {
 });
 
 /** Excluir um serviço (Soft delete se houver agendamentos vinculados) */
-app.delete('/clientes/:id', verificarToken, async (req, res) => {
+app.delete('/servicos/:id', verificarToken, async (req, res) => {
     // Apenas admins podem deletar
     if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
 
