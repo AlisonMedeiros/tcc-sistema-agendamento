@@ -645,8 +645,8 @@
 
                     await desenharGrafico();
                     await carregarListaClientes();
-                    setStatus('Dashboard atualizado.', 'ok');
-                    setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+                    //setStatus('Dashboard atualizado.', 'ok');
+                    //setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
                 } catch (e) {
                     console.error(e);
                     setStatus('Erro ao carregar os dados. Verifique a API.', 'erro');
