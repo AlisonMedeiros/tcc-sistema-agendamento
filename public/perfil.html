@@ -8,33 +8,65 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
     <link rel="apple-touch-icon" href="icon-192.png">
+    <style>
+        /* Ajuste fino para centralizar o card do formulário no PC */
+        .perfil-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        form.form-agendamento {
+            background: #fff;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+    </style>
 </head>
-<body>
-    <div class="app-container">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2 style="margin: 0;">Meu Perfil</h2>
-            <button id="btnEditarAtivar" type="button" style="background: transparent; border: 1px solid var(--roxo-principal); color: var(--roxo-principal); font-size: 13px; font-weight: bold; padding: 6px 14px; border-radius: 4px; cursor: pointer; transition: 0.2s;">Editar</button>
+<body class="admin-body">
+
+    <header class="admin-header" style="flex-wrap: wrap; gap: 15px;">
+        <div class="header-left">
+            <h1 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 24px;">
+            <img src="/logo-gundem.png" alt="Logo Gündem" onclick="voltarPainel()" title="Voltar ao Painel" style="height: 50px; width: auto; object-fit: contain; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            <span class="badge" id="headerBadge">Perfil</span>
+        </h1>
         </div>
-        <p class="subtitulo">Atualize suas informações</p>
+        <nav>
+            <button onclick="voltarPainel()" class="btn-voltar" style="position: static; margin: 0; padding: 8px 16px; font-size: 14px; border: none; cursor: pointer;">← Voltar ao Painel</button>
+        </nav>
+    </header>
 
-        <div id="statusPerfil" class="status-api" style="display: none;" role="status"></div>
+    <main class="admin-main">
+        <div class="perfil-container">
+            <div class="tabela-container" style="margin-bottom: 20px; padding: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                    <div style="text-align: left;">
+                        <h2 style="margin-bottom: 4px; text-align: left;">Minhas Informações</h2>
+                        <p style="font-size: 13px; color: #666; margin: 0;">Visualize ou atualize seus dados de acesso.</p>
+                    </div>
+                    <button id="btnEditarAtivar" type="button" style="width: auto; background: transparent; border: 2px solid var(--roxo-principal); color: var(--roxo-principal); font-size: 14px; font-weight: bold; padding: 8px 18px; border-radius: 8px; cursor: pointer; transition: 0.2s;">⚙️ Editar</button>
+                </div>
 
-        <form id="formPerfil" class="form-agendamento" novalidate>
-            <label class="field-label" for="nome">Nome Completo</label>
-            <input type="text" id="nome" name="nome" required>
+                <div id="statusPerfil" class="status-api" style="display: none; margin-top: 15px;" role="status"></div>
 
-            <label class="field-label" for="email">E-mail</label>
-            <input type="email" id="email" name="email" required>
+                <form id="formPerfil" class="form-agendamento" style="box-shadow: none; padding: 15px 0 0 0;" novalidate>
+                    <label class="field-label" for="nome">Nome Completo</label>
+                    <input type="text" id="nome" name="nome" required placeholder="Seu nome completo">
 
-            <label class="field-label" for="telefone" id="labelTelefone">Telefone (WhatsApp)</label>
-            <input type="tel" id="telefone" name="telefone" placeholder="(11) 99999-9999">
+                    <label class="field-label" for="email">E-mail de Acesso</label>
+                    <input type="email" id="email" name="email" required placeholder="seuemail@provedor.com">
 
-            <label class="field-label" for="senha">Nova Senha (Opcional)</label>
-            <input type="password" id="senha" name="senha" placeholder="Preencha apenas se quiser alterar">
-            <button type="submit" id="btnSalvarPerfil" style="margin-top: 15px; margin-bottom: 12px; display: none;">Salvar Alterações</button>
-            <button type="button" id="btnVoltar" style="background: transparent; border: 1px solid var(--roxo-principal); color: var(--roxo-principal);">Voltar</button>
-        </form>
-    </div>
+                    <label class="field-label" for="telefone" id="labelTelefone">Telefone (WhatsApp)</label>
+                    <input type="tel" id="telefone" name="telefone" placeholder="(11) 99999-9999">
+
+                    <label class="field-label" for="senha">Alterar Senha <span class="opcional">(Opcional)</span></label>
+                    <input type="password" id="senha" name="senha" placeholder="Preencha apenas se quiser mudar a atual">
+                    
+                    <button type="submit" id="btnSalvarPerfil" style="margin-top: 15px; background-color: #27ae60; display: none;">💾 Salvar Alterações</button>
+                </form>
+            </div>
+        </div>
+    </main>
 
     <script>
         (function () {
@@ -46,10 +78,17 @@
                 return;
             }
 
-            // O admin não precisa preencher telefone (já que é só login)
-            if(tipo === 'admin') {
+            // Customização do Badge dinâmico com base no tipo de usuário
+            const badge = document.getElementById('headerBadge');
+            if (tipo === 'admin') {
+                badge.textContent = 'Admin';
+                badge.style.background = '#FF6B6B';
+                // O admin não precisa preencher telefone
                 document.getElementById('telefone').style.display = 'none';
                 document.getElementById('labelTelefone').style.display = 'none';
+            } else {
+                badge.textContent = 'Cliente';
+                badge.style.background = 'var(--amarelo-secundario)';
             }
 
             var API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
@@ -58,6 +97,11 @@
             var form = document.getElementById('formPerfil');
             var statusEl = document.getElementById('statusPerfil');
             var btnSalvar = document.getElementById('btnSalvarPerfil');
+            var btnEditar = document.getElementById('btnEditarAtivar');
+
+            window.voltarPainel = function() {
+                window.location.href = tipo === 'admin' ? 'admin.html' : 'cliente.html';
+            };
 
             function setStatus(msg, tipoMsg) {
                 statusEl.textContent = msg;
@@ -65,7 +109,7 @@
                 statusEl.style.display = 'block';
             }
 
-            // Carregar dados atuais
+            // Buscar dados atuais do banco de dados (Supabase)
             async function carregarPerfil() {
                 try {
                     const res = await fetch(apiUrl('/perfil'), {
@@ -86,18 +130,19 @@
 
             carregarPerfil();
 
-            // Desabilitar campos inicialmente
+            // Bloquear os inputs por padrão no carregamento
             var inputsPerfil = form.querySelectorAll('input');
             inputsPerfil.forEach(function(i) { i.disabled = true; });
 
-            // Habilitar edição
-            document.getElementById('btnEditarAtivar').addEventListener('click', function() {
+            // Ação do Botão Editar (Libera os campos para digitação)
+            btnEditar.addEventListener('click', function() {
                 inputsPerfil.forEach(function(i) { i.disabled = false; });
                 btnSalvar.style.display = 'block';
+                btnEditar.style.display = 'none';
                 document.getElementById('nome').focus();
             });
 
-            // Salvar
+            // Envio das alterações para o Back-end
             form.addEventListener('submit', async function (ev) {
                 ev.preventDefault();
                 var nome = document.getElementById('nome').value.trim();
@@ -111,7 +156,7 @@
                 }
 
                 btnSalvar.disabled = true;
-                setStatus('Salvando...', 'info');
+                setStatus('Salvando alterações...', 'info');
 
                 try {
                     var res = await fetch(apiUrl('/perfil'), {
@@ -131,12 +176,14 @@
 
                     setStatus('✔ ' + body.mensagem, 'ok');
                     
-                    // Atualiza cache local
+                    // Atualiza o nome armazenado no cache local do navegador
                     localStorage.setItem('gundem_user_nome', nome);
                     
-                    // Desabilita de volta após salvar
+                    // Bloqueia os campos novamente após a gravação
                     inputsPerfil.forEach(function(i) { i.disabled = true; });
+                    document.getElementById('senha').value = ''; // limpa o input de senha por segurança
                     btnSalvar.style.display = 'none';
+                    btnEditar.style.display = 'block';
 
                 } catch (e) {
                     console.error(e);
@@ -144,10 +191,6 @@
                 } finally {
                     btnSalvar.disabled = false;
                 }
-            });
-
-            document.getElementById('btnVoltar').addEventListener('click', function() {
-                window.location.href = tipo === 'admin' ? 'admin.html' : 'cliente.html';
             });
         })();
     </script>

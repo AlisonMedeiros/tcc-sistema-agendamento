@@ -124,54 +124,24 @@ app.delete('/servicos/:id', verificarToken, async (req, res) => {
     if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
 
     const { id } = req.params;
-    const clientPool = await db.connect();
 
     try {
-        await clientPool.query('BEGIN');
+        // 1. Verifica se o serviço já foi utilizado em algum agendamento
+        const checkAgendamentos = await db.query('SELECT id_agendamento FROM agendamentos WHERE id_servico = $1 LIMIT 1', [id]);
 
-        // 1. Descobre se essa cliente tem uma conta de login
-        const resCli = await clientPool.query('SELECT id_usuario FROM clientes WHERE id_cliente = $1', [id]);
-        if (resCli.rows.length === 0) throw new Error('Cliente não encontrado.');
-        const id_usuario = resCli.rows[0].id_usuario;
-
-        // 2. Verifica se a cliente já tem algum agendamento no histórico
-        const resHist = await clientPool.query('SELECT COUNT(*) AS total FROM agendamentos WHERE id_cliente = $1', [id]);
-        const temHistorico = parseInt(resHist.rows[0].total, 10) > 0;
-
-        if (temHistorico) {
-            // SOFT DELETE (Anonimização LGPD): Mantém as finanças, apaga a pessoa
-            await clientPool.query(
-                `UPDATE clientes 
-                 SET nome = 'Cliente Removido (LGPD)', telefone = NULL, email = NULL, id_usuario = NULL 
-                 WHERE id_cliente = $1`, [id]
-            );
-
-            // Apaga a conta de acesso para ela não conseguir mais logar
-            if (id_usuario) {
-                await clientPool.query('DELETE FROM usuarios WHERE id_usuario = $1', [id_usuario]);
-            }
-
-            await clientPool.query('COMMIT');
-            return res.json({ mensagem: 'Cliente anonimizado! Dados apagados, mas métricas financeiras foram mantidas.' });
-
+        if (checkAgendamentos.rows.length > 0) {
+            // SOFT DELETE: O serviço já foi usado. Não podemos apagar, então inativamos.
+            await db.query('UPDATE servicos SET ativo = FALSE, atualizado_em = NOW() WHERE id_servico = $1', [id]);
+            return res.json({ mensagem: 'Este serviço possui histórico de agendamentos e não pode ser apagado, mas foi inativado com sucesso!' });
         } else {
-            // HARD DELETE: Não tem histórico, pode apagar permanentemente
-            await clientPool.query('DELETE FROM clientes WHERE id_cliente = $1', [id]);
-
-            if (id_usuario) {
-                await clientPool.query('DELETE FROM usuarios WHERE id_usuario = $1', [id_usuario]);
-            }
-
-            await clientPool.query('COMMIT');
-            return res.json({ mensagem: 'Cliente e conta de acesso excluídos permanentemente!' });
+            // HARD DELETE: O serviço nunca foi usado. Pode ser apagado permanentemente do banco.
+            await db.query('DELETE FROM servicos WHERE id_servico = $1', [id]);
+            return res.json({ mensagem: 'Serviço excluído permanentemente com sucesso!' });
         }
 
     } catch (erro) {
-        await clientPool.query('ROLLBACK');
-        console.error(erro);
-        res.status(500).json({ erro: 'Erro interno ao tentar excluir ou anonimizar o cliente.' });
-    } finally {
-        clientPool.release();
+        console.error('Erro ao excluir serviço:', erro);
+        res.status(500).json({ erro: 'Erro interno ao tentar excluir o serviço.' });
     }
 });
 

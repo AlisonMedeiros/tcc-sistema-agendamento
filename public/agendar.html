@@ -50,7 +50,10 @@
     <header class="admin-header">
         <div class="header-left" style="display: flex; align-items: center;">
             <button onclick="toggleMenuMobile()" class="btn-menu-lateral">☰</button>
-            <h1>Gündem <span class="badge" id="headerBadge">Cliente</span></h1>
+            <h1 style="display: flex; align-items: center; gap: 10px; margin: 0;">
+            <img src="/logo-gundem.png" alt="Logo Gündem" onclick="voltarPainel()" title="Voltar ao Painel" style="height: 50px; width: auto; object-fit: contain; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            <span class="badge" id="headerBadge">Cliente</span>
+        </h1>
         </div>
         
         <nav class="nav-desktop" style="display: flex; align-items: center; gap: 15px;">
