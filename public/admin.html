@@ -158,6 +158,20 @@
                     <button onclick="limparFiltrosAgendamento()" style="width: auto; padding: 0 16px; border-radius: 8px; background-color: #999; color: white; height: 38px; font-size: 14px; box-shadow: none; border: none; cursor: pointer;">Limpar</button>
                 </div>
 
+                <div class="table-responsive tabela-responsiva">
+                    <table class="table-admin" id="tableAgendamentos">
+                        <thead>
+                            <tr>
+                                <th>Data e Hora</th>
+                                <th>Cliente</th>
+                                <th>Serviço</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyAgendamentos"></tbody>
+                    </table>
+                </div>
+
                 <div id="listaCardsAgendamentosMobile" class="lista-cards-mobile"></div>
             </div>
         </section>
@@ -317,7 +331,7 @@
                     var resA = await fetch(apiUrl('/agendamentos?todos=true'), {
                         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
                     });
-                    
+
                     if (!resA.ok) throw new Error('Falha ao carregar agendamentos');
                     var agendamentos = await resA.json();
                 
@@ -391,7 +405,7 @@
                     }
                 } catch (e) { console.error(e); }
             };
-            
+
             // --- FUNÇÃO PARA RENDERIZAR CLIENTES (TABELA E CARDS) ---
             window.carregarListaClientes = async function() {
                 try {
