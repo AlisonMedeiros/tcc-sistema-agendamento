@@ -12,18 +12,36 @@
 
 <body class="admin-body">
     <header class="admin-header" style="flex-wrap: wrap; gap: 15px;">
-        <div class="header-left">
-            <h1 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 24px;">
-            <a href="admin.html" style="display: flex; align-items: center; text-decoration: none;" title="Página Inicial">
-                <img src="/logo-gundem.png" alt="Logo Gündem" style="height: 50px; width: auto; object-fit: contain; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-            </a>
-            <span class="badge">Configurações</span>
-        </h1>
+        <div class="header-left" style="display: flex; align-items: center;">
+            <button onclick="toggleMenuMobile()" class="btn-menu-lateral">☰</button>
+            <h1 style="display: flex; align-items: center; gap: 10px; margin: 0;">
+                <a href="admin.html" style="display: flex; align-items: center; text-decoration: none;" title="Página Inicial">
+                    <img src="/logo-gundem.png" alt="Logo Gündem" style="height: 50px; width: auto; object-fit: contain; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                </a>
+                <span class="badge">Configurações</span>
+            </h1>
         </div>
-        <nav>
-            <a href="admin.html" class="btn-voltar" style="position: static; margin: 0; padding: 8px 16px; font-size: 14px;">← Voltar ao Painel</a>
+        <nav class="nav-desktop">
+            <a href="admin.html" class="btn-voltar" style="position: static; margin: 0; padding: 8px 16px; font-size: 14px; text-decoration: none;">← Voltar ao Painel</a>
         </nav>
     </header>
+
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="fecharMenuMobile()"></div>
+    <div id="sidebarMobile" class="sidebar-mobile">
+        <div class="sidebar-header">
+            <h2 style="margin: 0; font-size: 18px;">Menu</h2>
+            <button onclick="fecharMenuMobile()" class="btn-fechar-sidebar">✖</button>
+        </div>
+        <div class="sidebar-content">
+            <p class="sidebar-titulo">Navegação</p>
+            <button class="btn-aba" onclick="window.location.href='admin.html'">Painel Principal</button>
+            
+            <p class="sidebar-titulo" style="margin-top: 20px;">Conta</p>
+            <a href="perfil.html" class="btn-sidebar-link">Meu Perfil</a>
+            <a href="configuracoes.html" class="btn-sidebar-link">Configurações</a>
+            <button onclick="logout()" class="btn-sidebar-link btn-sair-sidebar">Sair da Conta</button>
+        </div>
+    </div>
 
     <main class="admin-main">
         <section class="admin-tabelas">
@@ -46,13 +64,11 @@
                                 <th>Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="tbodyServicos">
-                            </tbody>
+                        <tbody id="tbodyServicos"></tbody>
                     </table>
                 </div>
 
                 <div id="listaCardsServicosMobile" class="lista-cards-mobile"></div>
-
             </div>
         </section>
     </main>
@@ -62,23 +78,17 @@
             <h3 id="modalTitulo">Novo Serviço</h3>
             <form id="formServico">
                 <input type="hidden" id="id_servico">
-                
                 <label class="field-label">Nome</label>
                 <input type="text" id="nome" required>
-                
                 <label class="field-label">Descrição</label>
                 <textarea id="descricao" rows="2"></textarea>
-                
                 <label class="field-label">Preço (R$)</label>
                 <input type="number" step="0.01" id="preco" required>
-                
                 <label class="field-label">Duração (minutos)</label>
                 <input type="number" id="duracao" required>
-
                 <div id="campoAtivo" style="margin-top: 10px;">
                     <label><input type="checkbox" id="ativo" checked> Ativo</label>
                 </div>
-
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button type="submit" class="btn-enviar">Salvar</button>
                     <button type="button" onclick="fecharModal()" style="background: #999;">Cancelar</button>
@@ -106,6 +116,21 @@
             const modal = document.getElementById('modalServico');
             const form = document.getElementById('formServico');
 
+            // Funções do Menu Mobile
+            window.toggleMenuMobile = function() {
+                document.getElementById('sidebarMobile').classList.add('aberto');
+                document.getElementById('sidebarOverlay').classList.add('ativo');
+            };
+            window.fecharMenuMobile = function() {
+                document.getElementById('sidebarMobile').classList.remove('aberto');
+                document.getElementById('sidebarOverlay').classList.remove('ativo');
+            };
+            window.logout = function() {
+                localStorage.removeItem('gundem_token');
+                localStorage.removeItem('gundem_user_tipo');
+                window.location.href = 'login.html';
+            };
+
             function setStatus(msg, tipo) {
                 statusEl.textContent = msg;
                 statusEl.className = 'status-api' + (tipo ? ' status-api--' + tipo : '');
@@ -113,7 +138,6 @@
                 if (tipo === 'ok') setTimeout(() => statusEl.style.display = 'none', 3000);
             }
 
-            // FUNÇÃO ATUALIZADA: Renderiza tanto a tabela quanto os Cards
             async function carregarServicos() {
                 try {
                     const res = await fetch(apiUrl('/servicos?todos=true'));
@@ -125,7 +149,6 @@
                         return;
                     }
 
-                    // Tabela para Desktop
                     tbody.innerHTML = servicos.map(s => `
                         <tr>
                             <td><strong>${s.nome}</strong></td>
@@ -141,17 +164,17 @@
                         </tr>
                     `).join('');
 
-                    // Cards para Mobile
+                    // NOVO LAYOUT DE CARDS PADRONIZADO (Com botões divididos igual Clientes)
                     cardsMobile.innerHTML = servicos.map(s => `
-                        <div class="card-agendamento-mobile" style="border-left-color: ${s.ativo ? 'var(--roxo-principal)' : 'var(--rosa-destaque)'};">
+                        <div class="card-agendamento-mobile" style="border-left-color: ${s.ativo ? 'var(--roxo-principal)' : 'var(--rosa-destaque)'}; margin-bottom: 16px;">
                             <div class="card-mobile__linha"><span class="card-mobile__label">Nome:</span> <span class="card-mobile__valor"><strong>${s.nome}</strong></span></div>
                             <div class="card-mobile__linha"><span class="card-mobile__label">Preço:</span> <span class="card-mobile__valor">R$ ${Number(s.preco_padrao).toFixed(2)}</span></div>
                             <div class="card-mobile__linha"><span class="card-mobile__label">Duração:</span> <span class="card-mobile__valor">${s.duracao_minutos} min</span></div>
                             <div class="card-mobile__linha"><span class="card-mobile__label">Status:</span> <span class="card-mobile__valor status-tag ${s.ativo ? '' : 'status-tag--cancelado'}">${s.ativo ? 'Ativo' : 'Inativo'}</span></div>
                             
-                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 8px;">
-                                <button onclick='abrirModal(${JSON.stringify(s).replace(/'/g, "&apos;")})' class="btn-acao" style="background: var(--roxo-principal); padding: 6px 16px; font-size: 13px;">Editar</button>
-                                <button onclick='excluirServico(${s.id_servico})' class="btn-acao btn-cancelar" style="padding: 6px 16px; font-size: 13px;">Excluir</button>
+                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: flex; gap: 10px;">
+                                <button onclick='abrirModal(${JSON.stringify(s).replace(/'/g, "&apos;")})' class="btn-acao" style="flex: 1; background: var(--roxo-principal); color: white; border-radius: 8px; padding: 8px 0; font-weight: bold; font-size: 14px;">✏️ Editar</button>
+                                <button onclick='excluirServico(${s.id_servico})' class="btn-acao btn-cancelar" style="flex: 1; background: var(--rosa-destaque); color: white; border-radius: 8px; padding: 8px 0; font-weight: bold; font-size: 14px; border: none;">✖ Excluir</button>
                             </div>
                         </div>
                     `).join('');
@@ -184,16 +207,13 @@
                 if(!confirm('Tem certeza que deseja excluir este serviço? Esta ação não pode ser visualmente desfeita.')) return;
                 try {
                     setStatus('Processando exclusão...', 'info');
-                    window.scrollTo(0, 0); // Para o admin ver o status no topo
-                    
+                    window.scrollTo(0, 0); 
                     const res = await fetch(apiUrl('/servicos/' + id), {
                         method: 'DELETE',
                         headers: { 'Authorization': 'Bearer ' + token }
                     });
                     const resData = await res.json();
-                    
                     if (!res.ok) throw new Error(resData.erro || 'Erro ao processar exclusão.');
-                    
                     setStatus(resData.mensagem, 'ok');
                     carregarServicos();
                 } catch(e) {
@@ -225,9 +245,7 @@
                         },
                         body: JSON.stringify(payload)
                     });
-
                     if (!res.ok) throw new Error('Erro ao salvar serviço');
-                    
                     setStatus('Serviço salvo com sucesso!', 'ok');
                     fecharModal();
                     carregarServicos();

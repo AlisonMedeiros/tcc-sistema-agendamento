@@ -9,7 +9,6 @@
     <meta name="theme-color" content="#2c3e50">
     <link rel="apple-touch-icon" href="icon-192.png">
     <style>
-        /* Ajuste fino para centralizar o card do formulário no PC */
         .perfil-container {
             max-width: 500px;
             margin: 0 auto;
@@ -25,16 +24,36 @@
 <body class="admin-body">
 
     <header class="admin-header" style="flex-wrap: wrap; gap: 15px;">
-        <div class="header-left">
-            <h1 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 24px;">
-            <img src="/logo-gundem.png" alt="Logo Gündem" onclick="voltarPainel()" title="Voltar ao Painel" style="height: 50px; width: auto; object-fit: contain; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-            <span class="badge" id="headerBadge">Perfil</span>
-        </h1>
+        <div class="header-left" style="display: flex; align-items: center;">
+            <button onclick="toggleMenuMobile()" class="btn-menu-lateral">☰</button>
+            <h1 style="display: flex; align-items: center; gap: 10px; margin: 0;">
+                <a href="javascript:voltarPainel()" style="display: flex; align-items: center; text-decoration: none;" title="Página Inicial">
+                    <img src="/logo-gundem.png" alt="Logo Gündem" style="height: 50px; width: auto; object-fit: contain; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                </a>
+                <span class="badge" id="headerBadge">Perfil</span>
+            </h1>
         </div>
-        <nav>
+        <nav class="nav-desktop">
             <button onclick="voltarPainel()" class="btn-voltar" style="position: static; margin: 0; padding: 8px 16px; font-size: 14px; border: none; cursor: pointer;">← Voltar ao Painel</button>
         </nav>
     </header>
+
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="fecharMenuMobile()"></div>
+    <div id="sidebarMobile" class="sidebar-mobile">
+        <div class="sidebar-header">
+            <h2 style="margin: 0; font-size: 18px;">Menu</h2>
+            <button onclick="fecharMenuMobile()" class="btn-fechar-sidebar">✖</button>
+        </div>
+        <div class="sidebar-content">
+            <p class="sidebar-titulo">Navegação</p>
+            <button class="btn-aba" onclick="voltarPainel()">Painel Principal</button>
+            
+            <p class="sidebar-titulo" style="margin-top: 20px;">Conta</p>
+            <a href="perfil.html" class="btn-sidebar-link">Meu Perfil</a>
+            <a href="configuracoes.html" class="btn-sidebar-link">Configurações</a>
+            <button onclick="logout()" class="btn-sidebar-link btn-sair-sidebar">Sair da Conta</button>
+        </div>
+    </div>
 
     <main class="admin-main">
         <div class="perfil-container">
@@ -78,12 +97,10 @@
                 return;
             }
 
-            // Customização do Badge dinâmico com base no tipo de usuário
             const badge = document.getElementById('headerBadge');
             if (tipo === 'admin') {
                 badge.textContent = 'Admin';
                 badge.style.background = '#FF6B6B';
-                // O admin não precisa preencher telefone
                 document.getElementById('telefone').style.display = 'none';
                 document.getElementById('labelTelefone').style.display = 'none';
             } else {
@@ -99,8 +116,22 @@
             var btnSalvar = document.getElementById('btnSalvarPerfil');
             var btnEditar = document.getElementById('btnEditarAtivar');
 
+            // Funções de Navegação e Menu
             window.voltarPainel = function() {
                 window.location.href = tipo === 'admin' ? 'admin.html' : 'cliente.html';
+            };
+            window.toggleMenuMobile = function() {
+                document.getElementById('sidebarMobile').classList.add('aberto');
+                document.getElementById('sidebarOverlay').classList.add('ativo');
+            };
+            window.fecharMenuMobile = function() {
+                document.getElementById('sidebarMobile').classList.remove('aberto');
+                document.getElementById('sidebarOverlay').classList.remove('ativo');
+            };
+            window.logout = function() {
+                localStorage.removeItem('gundem_token');
+                localStorage.removeItem('gundem_user_tipo');
+                window.location.href = 'login.html';
             };
 
             function setStatus(msg, tipoMsg) {
@@ -109,32 +140,23 @@
                 statusEl.style.display = 'block';
             }
 
-            // Buscar dados atuais do banco de dados (Supabase)
             async function carregarPerfil() {
                 try {
-                    const res = await fetch(apiUrl('/perfil'), {
-                        headers: { 'Authorization': 'Bearer ' + token }
-                    });
+                    const res = await fetch(apiUrl('/perfil'), { headers: { 'Authorization': 'Bearer ' + token } });
                     if (!res.ok) throw new Error('Não foi possível carregar os dados.');
                     const dados = await res.json();
                     
                     document.getElementById('nome').value = dados.nome || '';
                     document.getElementById('email').value = dados.email || '';
-                    if(tipo !== 'admin') {
-                        document.getElementById('telefone').value = dados.telefone || '';
-                    }
-                } catch(e) {
-                    setStatus(e.message, 'erro');
-                }
+                    if(tipo !== 'admin') document.getElementById('telefone').value = dados.telefone || '';
+                } catch(e) { setStatus(e.message, 'erro'); }
             }
 
             carregarPerfil();
 
-            // Bloquear os inputs por padrão no carregamento
             var inputsPerfil = form.querySelectorAll('input');
             inputsPerfil.forEach(function(i) { i.disabled = true; });
 
-            // Ação do Botão Editar (Libera os campos para digitação)
             btnEditar.addEventListener('click', function() {
                 inputsPerfil.forEach(function(i) { i.disabled = false; });
                 btnSalvar.style.display = 'block';
@@ -142,7 +164,6 @@
                 document.getElementById('nome').focus();
             });
 
-            // Envio das alterações para o Back-end
             form.addEventListener('submit', async function (ev) {
                 ev.preventDefault();
                 var nome = document.getElementById('nome').value.trim();
@@ -150,10 +171,7 @@
                 var telefone = document.getElementById('telefone').value.trim();
                 var senha = document.getElementById('senha') ? document.getElementById('senha').value.trim() : null;
 
-                if (!nome || !email) {
-                    setStatus('Nome e e-mail são obrigatórios.', 'erro');
-                    return;
-                }
+                if (!nome || !email) { setStatus('Nome e e-mail são obrigatórios.', 'erro'); return; }
 
                 btnSalvar.disabled = true;
                 setStatus('Salvando alterações...', 'info');
@@ -161,32 +179,21 @@
                 try {
                     var res = await fetch(apiUrl('/perfil'), {
                         method: 'PUT',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + token
-                        },
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                         body: JSON.stringify({ nome: nome, email: email, telefone: telefone, senha: senha || null })
                     });
                     
                     var body = await res.json().catch(function() { return {}; });
-
-                    if (!res.ok) {
-                        throw new Error(body.erro || 'Falha ao salvar o perfil.');
-                    }
+                    if (!res.ok) throw new Error(body.erro || 'Falha ao salvar o perfil.');
 
                     setStatus('✔ ' + body.mensagem, 'ok');
-                    
-                    // Atualiza o nome armazenado no cache local do navegador
                     localStorage.setItem('gundem_user_nome', nome);
                     
-                    // Bloqueia os campos novamente após a gravação
                     inputsPerfil.forEach(function(i) { i.disabled = true; });
-                    document.getElementById('senha').value = ''; // limpa o input de senha por segurança
+                    document.getElementById('senha').value = ''; 
                     btnSalvar.style.display = 'none';
                     btnEditar.style.display = 'block';
-
                 } catch (e) {
-                    console.error(e);
                     setStatus(e.message, 'erro');
                 } finally {
                     btnSalvar.disabled = false;
