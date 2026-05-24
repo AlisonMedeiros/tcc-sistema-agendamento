@@ -597,3 +597,22 @@ button:active {
         color: #333;
     }
 }
+.btn-filtro-pill {
+            background: transparent;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #555;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-filtro-pill:hover {
+            background: rgba(0,0,0,0.05);
+        }
+        .btn-filtro-pill.ativa {
+            background: var(--roxo-principal);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }

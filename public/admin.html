@@ -132,35 +132,30 @@
 
         <section id="sec-agendamentos" class="aba-painel" style="margin-bottom: 30px;">
             <div class="tabela-container">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin-bottom: 0;">Todos os Agendamentos</h2>
                     <button onclick="abrirModalPacote()" class="btn-enviar" style="width: auto; padding: 8px 16px; font-size: 14px; border-radius: 8px;">+ Novo Pacote</button>
                 </div>
-                <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
-                    <input type="date" id="filtroDataAgendamento">
-                    <select id="filtroStatusAgendamento">
-                        <option value="">Todos Status</option>
-                        <option value="marcado">Marcado</option>
-                        <option value="confirmado">Confirmado</option>
-                        <option value="concluido">Concluido</option>
-                        <option value="cancelado">Cancelado</option>
-                    </select>
-                    <button onclick="carregarListaFiltro()" style="width: auto; padding: 0 16px; border-radius: 8px; background-color: var(--roxo-principal); color: white; height: 38px; font-size: 14px;">Filtrar</button>
-                    <button onclick="document.getElementById('filtroDataAgendamento').value=''; document.getElementById('filtroStatusAgendamento').value=''; carregarListaFiltro()" style="width: auto; padding: 0 16px; border-radius: 8px; background-color: #999; color: white; height: 38px; font-size: 14px; box-shadow: none;">Limpar</button>
-                </div>
                 
-                <div class="table-responsive tabela-responsiva">
-                    <table class="table-admin" id="tableAgendamentos">
-                        <thead>
-                            <tr>
-                                <th>Data e Hora</th>
-                                <th>Cliente</th>
-                                <th>Serviço</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbodyAgendamentos"></tbody>
-                    </table>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+                    <input type="date" id="filtroDataAgendamento" onchange="carregarListaFiltro()" style="height: 38px; padding: 0 10px; border-radius: 8px; border: 1px solid #ccc;">
+                    
+                    <div style="display: flex; gap: 6px; background: #f1f2f6; padding: 4px; border-radius: 30px;">
+                        <button type="button" id="btnFiltroPendentes" onclick="mudarModoFiltro('pendentes')" class="btn-filtro-pill ativa">Falta Aprovação</button>
+                        <button type="button" id="btnFiltroConcluidos" onclick="mudarModoFiltro('concluido')" class="btn-filtro-pill">Concluídos</button>
+                        <button type="button" id="btnFiltroCancelados" onclick="mudarModoFiltro('cancelado')" class="btn-filtro-pill">Cancelados</button>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <label for="filtroLimite" style="font-size: 13px; color: #666; font-weight: bold;">Exibir:</label>
+                        <select id="filtroLimite" onchange="carregarListaFiltro()" style="height: 38px; border-radius: 8px; padding: 0 10px; border: 1px solid #ccc; background: white; font-weight: bold; color: var(--roxo-principal);">
+                            <option value="10" selected>10 últimos</option>
+                            <option value="20">20 últimos</option>
+                            <option value="todos">Todos</option>
+                        </select>
+                    </div>
+
+                    <button onclick="limparFiltrosAgendamento()" style="width: auto; padding: 0 16px; border-radius: 8px; background-color: #999; color: white; height: 38px; font-size: 14px; box-shadow: none; border: none; cursor: pointer;">Limpar</button>
                 </div>
 
                 <div id="listaCardsAgendamentosMobile" class="lista-cards-mobile"></div>
@@ -222,6 +217,29 @@
     </div>
 
     <script>
+        let modoFiltroAgendamento = 'pendentes'; // Padrão inicial
+
+        window.mudarModoFiltro = function(modo) {
+            modoFiltroAgendamento = modo;
+            
+            // Atualiza o visual dos botões
+            document.getElementById('btnFiltroPendentes').classList.remove('ativa');
+            document.getElementById('btnFiltroConcluidos').classList.remove('ativa');
+            document.getElementById('btnFiltroCancelados').classList.remove('ativa');
+            
+            if(modo === 'pendentes') document.getElementById('btnFiltroPendentes').classList.add('ativa');
+            if(modo === 'concluido') document.getElementById('btnFiltroConcluidos').classList.add('ativa');
+            if(modo === 'cancelado') document.getElementById('btnFiltroCancelados').classList.add('ativa');
+            
+            // Recarrega a lista aplicando a nova regra
+            carregarListaFiltro();
+        };
+
+        window.limparFiltrosAgendamento = function() {
+            document.getElementById('filtroDataAgendamento').value = '';
+            document.getElementById('filtroLimite').value = '10';
+            mudarModoFiltro('pendentes');
+        };
         window.abrirAba = function(idAba, botaoClicado) {
             document.querySelectorAll('.aba-painel').forEach(aba => aba.classList.remove('ativa'));
             document.querySelectorAll('.btn-aba').forEach(btn => btn.classList.remove('ativa'));
@@ -291,28 +309,47 @@
             // --- FUNÇÃO PARA RENDERIZAR AGENDAMENTOS (TABELA E CARDS) ---
             window.carregarListaFiltro = async function () {
                 try {
+                    // 1. Lemos os valores dos novos inputs HTML
                     let dataFiltro = document.getElementById('filtroDataAgendamento').value;
-                    let statusFiltro = document.getElementById('filtroStatusAgendamento').value;
-                    let url = apiUrl('/agendamentos?limite=100');
-                    if (dataFiltro) url += '&data=' + dataFiltro;
-
-                    var resA = await fetch(url, {
+                    let limiteFiltro = document.getElementById('filtroLimite') ? document.getElementById('filtroLimite').value : '10';
+                
+                    // 2. Busca todos os agendamentos (para que possamos filtrar perfeitamente no Front-end)
+                    var resA = await fetch(apiUrl('/agendamentos?todos=true'), {
                         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
                     });
+                    
                     if (!resA.ok) throw new Error('Falha ao carregar agendamentos');
                     var agendamentos = await resA.json();
-
-                    if (statusFiltro) {
-                        agendamentos = agendamentos.filter(a => a.status === statusFiltro);
+                
+                    // 3. APLICAÇÃO DO FILTRO DE DATA
+                    if (dataFiltro) {
+                        agendamentos = agendamentos.filter(a => a.data_hora_inicio.startsWith(dataFiltro));
                     }
-
+                
+                    // 4. APLICAÇÃO DO FILTRO DE STATUS (Botões Pílula)
+                    // Garante que a variável global modoFiltroAgendamento existe
+                    if (typeof modoFiltroAgendamento !== 'undefined') {
+                        if (modoFiltroAgendamento === 'pendentes') {
+                            agendamentos = agendamentos.filter(a => a.status === 'marcado' || a.status === 'confirmado');
+                        } else {
+                            agendamentos = agendamentos.filter(a => a.status === modoFiltroAgendamento);
+                        }
+                    }
+                
+                    // 5. APLICAÇÃO DO LIMITE DE EXIBIÇÃO
+                    if (limiteFiltro !== 'todos') {
+                        agendamentos = agendamentos.slice(0, parseInt(limiteFiltro, 10));
+                    }
+                
+                    // Atualiza o contador visual na tela
                     totalAg.textContent = agendamentos.length;
-
+                
+                    // 6. RENDERIZAÇÃO DA INTERFACE (Tabela e Cards)
                     if (agendamentos.length === 0) {
                         tbodyAg.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum agendamento encontrado' + (dataFiltro ? ' nesta data.' : '.') + '</td></tr>';
                         cardsAg.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Nenhum agendamento encontrado.</div>';
                     } else {
-                        // Tabela
+                        // Tabela 
                         tbodyAg.innerHTML = agendamentos.map(function (a) {
                             return `<tr>
                                 <td>${formatarData(a.data_hora_inicio)}</td>
@@ -329,14 +366,14 @@
                                 </td>
                             </tr>`;
                         }).join('');
-
+                    
                         // Cards Mobile
                         cardsAg.innerHTML = agendamentos.map(function (a) {
                             var corStatus = 'var(--roxo-principal)';
                             var st = a.status.toLowerCase();
                             if(st === 'cancelado') corStatus = 'red';
                             if(st === 'concluido') corStatus = 'green';
-
+                        
                             return `
                             <div class="card-agendamento-mobile">
                                 <div class="card-mobile__linha"><span class="card-mobile__label">Data:</span> <span class="card-mobile__valor">${formatarData(a.data_hora_inicio)}</span></div>
@@ -354,7 +391,7 @@
                     }
                 } catch (e) { console.error(e); }
             };
-
+            
             // --- FUNÇÃO PARA RENDERIZAR CLIENTES (TABELA E CARDS) ---
             window.carregarListaClientes = async function() {
                 try {
