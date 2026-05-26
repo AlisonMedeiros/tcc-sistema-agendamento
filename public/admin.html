@@ -230,8 +230,31 @@
         </div>
     </div>
 
+    <div id="modalFiltroRelatorio" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+        <div class="app-container" style="background: white; padding: 30px; border-radius: 12px; width: 400px; max-width: 90%;">
+            <h3 style="color: var(--roxo-principal); margin-bottom: 8px;">Filtrar Extrato de Consumo</h3>
+            <p id="nomeClienteRelatorio" style="font-weight: bold; margin-bottom: 20px; color: #666; font-size: 14px;"></p>
+            
+            <form id="formFiltroRelatorio">
+                <label class="field-label">Filtrar por Mês/Ano (Opcional)</label>
+                <input type="month" id="relatorioMesAno" style="height: 38px; border-radius: 8px; border: 1px solid #ccc; width: 100%; padding: 0 10px; margin-bottom: 15px;">
+
+                <label class="field-label">Filtrar por Serviço (Opcional)</label>
+                <select id="relatorioServico" style="height: 38px; border-radius: 8px; border: 1px solid #ccc; width: 100%; padding: 0 10px; background: white;">
+                    <option value="">Todos os Serviços</option>
+                </select>
+
+                <div style="display: flex; gap: 10px; margin-top: 24px;">
+                    <button type="submit" class="btn-enviar" style="background: var(--roxo-principal);">Gerar Extrato</button>
+                    <button type="button" onclick="fecharModalRelatorio()" style="background: #999;">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         let modoFiltroAgendamento = 'pendentes'; // Padrão inicial
+        let clienteRelatorioAtual = { id: null, nome: '' };
 
         window.mudarModoFiltro = function(modo) {
             modoFiltroAgendamento = modo;
@@ -413,7 +436,10 @@
                         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
                     });
                     if(!res.ok) throw new Error('Falha ao carregar clientes');
-                    const dados = await res.json();
+                    let dados = await res.json(); // Mudamos de 'const' para 'let' para podermos filtrar
+                    
+                    // 🌟 A LINHA MÁGICA: Oculta os clientes que foram removidos via LGPD
+                    dados = dados.filter(c => c.nome !== 'Cliente Removido (LGPD)');
                     
                     if(dados.length === 0) {
                         tbodyCli.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum cliente cadastrado.</td></tr>';
@@ -489,23 +515,65 @@
 
             // --- NOVA FUNÇÃO PARA GERAR RELATÓRIO DE GASTOS ---
             window.gerarRelatorio = async function(id, nome) {
+                // Guarda os dados da cliente clicada
+                clienteRelatorioAtual.id = id;
+                clienteRelatorioAtual.nome = nome;
+                
+                document.getElementById('nomeClienteRelatorio').textContent = `Cliente: ${nome}`;
+                document.getElementById('modalFiltroRelatorio').style.display = 'flex';
+                
+                // Popula o select do modal com os serviços ativos cadastrados no sistema
+                try {
+                    const resS = await fetch(apiUrl('/servicos'));
+                    if (resS.ok) {
+                        const servicos = await resS.json();
+                        const sel = document.getElementById('relatorioServico');
+                        sel.innerHTML = '<option value="">Todos os Serviços</option>';
+                        servicos.forEach(s => {
+                            sel.innerHTML += `<option value="${s.nome}">${s.nome}</option>`;
+                        });
+                    }
+                } catch(e) { console.error("Erro ao carregar serviços no filtro:", e); }
+            };
+
+            window.fecharModalRelatorio = function() {
+                document.getElementById('modalFiltroRelatorio').style.display = 'none';
+                document.getElementById('formFiltroRelatorio').reset();
+            };
+            document.getElementById('formFiltroRelatorio').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const id = clienteRelatorioAtual.id;
+                const nome = clienteRelatorioAtual.nome;
+                const mesFiltro = document.getElementById('relatorioMesAno').value; // Retorna "YYYY-MM"
+                const servicoFiltro = document.getElementById('relatorioServico').value;
+
                 var statusEl = document.getElementById('statusApi');
                 setStatus('Gerando relatório...', 'info');
+                fecharModalRelatorio();
                 
                 try {
                     const res = await fetch(apiUrl('/clientes/' + id + '/relatorio'), {
                         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('gundem_token') }
                     });
                     if (!res.ok) throw new Error('Falha ao buscar dados do relatório.');
-                    const dados = await res.json();
+                    let dados = await res.json();
                     
+                    // 🌟 FILTRAGEM INTELIGENTE DOS DADOS EM TEMPO REAL (FRONT-END)
+                    if (mesFiltro) {
+                        dados = dados.filter(d => d.data_hora_inicio.startsWith(mesFiltro));
+                    }
+                    if (servicoFiltro) {
+                        dados = dados.filter(d => d.servico === servicoFiltro);
+                    }
+
                     if (dados.length === 0) {
-                        alert('A cliente ' + nome + ' ainda não possui serviços pagos/concluídos no histórico.');
+                        alert('Nenhum serviço pago/concluído encontrado para os filtros selecionados.');
                         statusEl.style.display = 'none';
                         return;
                     }
 
-                    // Calcula o total e monta as linhas
+                    // Calcula o total filtrado e monta as linhas do PDF
                     let total = 0;
                     let linhas = dados.map(d => {
                         total += Number(d.valor);
@@ -517,11 +585,23 @@
                         </tr>`;
                     }).join('');
 
-                    // Cria o visual do relatório (Página Branca Profissional)
+                    // Constrói uma legenda dinâmica com base nos filtros para aparecer no topo do PDF
+                    let subTituloFiltro = 'Histórico de Consumo Geral';
+                    if (mesFiltro && servicoFiltro) {
+                        const [ano, mes] = mesFiltro.split('-');
+                        subTituloFiltro = `Filtro Aplicado: Mês ${mes}/${ano} · Procedimento: ${servicoFiltro}`;
+                    } else if (mesFiltro) {
+                        const [ano, mes] = mesFiltro.split('-');
+                        subTituloFiltro = `Filtro Aplicado: Competência ${mes}/${ano}`;
+                    } else if (servicoFiltro) {
+                        subTituloFiltro = `Filtro Aplicado: Apenas Procedimentos de ${servicoFiltro}`;
+                    }
+
+                    // Renderização da página profissional de impressão
                     let htmlRelatorio = `
                     <html>
                     <head>
-                        <title>Extrato de Serviços - ${nome}</title>
+                        <title>Extrato Gündem - ${nome}</title>
                         <style>
                             body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; max-width: 800px; margin: auto; }
                             .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #4E295B; padding-bottom: 20px; }
@@ -533,21 +613,16 @@
                             .total-box { margin-top: 30px; padding: 15px; background: #f9f9f9; border-left: 5px solid #F79E1B; font-size: 18px; font-weight: bold; text-align: right; }
                             .btn-imprimir { margin-top: 30px; padding: 12px 24px; background: #4E295B; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; display: block; margin-left: auto; margin-right: auto; }
                             .btn-imprimir:hover { background: #3a1f44; }
-                            
-                            /* Esconde o botão na hora de imprimir o papel ou salvar o PDF */
-                            @media print { 
-                                .btn-imprimir { display: none; } 
-                                body { padding: 0; }
-                            }
+                            @media print { .btn-imprimir { display: none; } body { padding: 0; } }
                         </style>
                     </head>
                     <body>
                         <div class="header">
                             <h1>Extrato de Consumo - Estúdio Gündem</h1>
                             <p><strong>Cliente:</strong> ${nome}</p>
+                            <p style="color: #4E295B; font-weight: bold;">${subTituloFiltro}</p>
                             <p><strong>Emitido em:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
                         </div>
-                        
                         <table>
                             <thead>
                                 <tr>
@@ -556,20 +631,13 @@
                                     <th>Valor Investido</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${linhas}
-                            </tbody>
+                            <tbody>${linhas}</tbody>
                         </table>
-                        
-                        <div class="total-box">
-                            Total Investido no Estúdio: R$ ${total.toFixed(2)}
-                        </div>
-                        
+                        <div class="total-box">Total do Período: R$ ${total.toFixed(2)}</div>
                         <button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / Salvar como PDF</button>
                     </body>
                     </html>`;
 
-                    // Abre uma nova janela invisível e joga o HTML lá dentro!
                     let janelaRelatorio = window.open('', '_blank');
                     janelaRelatorio.document.write(htmlRelatorio);
                     janelaRelatorio.document.close();
@@ -579,7 +647,7 @@
                     console.error(e);
                     setStatus('Erro ao gerar relatório.', 'erro');
                 }
-            };
+            });
 
             // ... Gráficos ...
             async function desenharGrafico() {

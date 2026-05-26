@@ -8,6 +8,23 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c3e50">
     <link rel="apple-touch-icon" href="icon-192.png">
+
+    <script>
+        // TRAVA DE SESSÃO: Verifica se já existe alguém logado antes de mostrar a tela de login
+        (function() {
+            const token = localStorage.getItem('gundem_token');
+            const tipo = localStorage.getItem('gundem_user_tipo');
+
+            if (token && tipo) {
+                // Se já tem um crachá, redireciona imediatamente para o painel correto
+                if (tipo === 'admin') {
+                    window.location.replace('admin.html');
+                } else {
+                    window.location.replace('cliente.html');
+                }
+            }
+        })();
+    </script>
 </head>
 <body>
     <div class="app-container">
