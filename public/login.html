@@ -123,7 +123,12 @@
                 window.location.href = 'cadastro.html';
             });
         })();
-        // --- LÓGICA DE INSTALAÇÃO DO PWA ---
+            // ============================================================================
+            // [PWA / INSTALAÇÃO]: CONVERSÃO PARA APP NATIVO
+            // Este evento nativo (beforeinstallprompt) "ouve" quando o navegador 
+            // reconhece que nosso site atende aos requisitos de PWA e permite 
+            // que a cliente adicione o Gündem à tela inicial do celular como um App.
+            // ============================================================================
             var eventoInstalacao;
             var boxInstalarApp = document.getElementById('boxInstalarApp');
 

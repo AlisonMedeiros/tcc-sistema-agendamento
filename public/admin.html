@@ -12,6 +12,13 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script>
+        
+        // ============================================================================
+        // [FRONTEND SECURITY]: GATEKEEPER E TRAVA DE RENDERIZAÇÃO
+        // O script de bloqueio roda no <head> ANTES do navegador desenhar o HTML (DOM).
+        // Isso impede o efeito "Flash" (onde a tela pisca antes de redirecionar) e
+        // impede que um usuário comum veja o layout do painel administrativo.
+        // ============================================================================
         // Verifica se é realmente um admin ANTES de carregar a página
         const tipo = localStorage.getItem('gundem_user_tipo');
         if (tipo !== 'admin') {

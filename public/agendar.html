@@ -180,7 +180,12 @@
         function fecharBoxPix() {
             voltarPainel();
         }
-
+        // ============================================================================
+        // [USABILIDADE / UX]: WEB CLIPBOARD API
+        // Melhoramos a taxa de conversão financeira (pagamento) usando a API nativa
+        // do navegador (navigator.clipboard) para que a cliente copie o PIX com
+        // 1 clique, sem precisar selecionar o texto manualmente na tela do celular.
+        // ============================================================================
         function copiarChavePix() {
             const codigoPixCopiaECola = "00020126360014br.gov.bcb.pix0114+55119999999995204000053039865802BR5912Debora Braga6009Sao Paulo62070503***63041A2B"; 
             navigator.clipboard.writeText(codigoPixCopiaECola).then(function() {

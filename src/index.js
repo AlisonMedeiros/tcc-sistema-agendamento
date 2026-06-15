@@ -7,7 +7,12 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const SECRET_KEY = process.env.JWT_SECRET || 'gudem_secreto_super_seguro_2026';
 
-// Middleware de Autenticação JWT
+// ============================================================================
+// [SEGURANÇA / JWT]: AUTENTICAÇÃO STATELESS
+// Middleware que intercepta todas as requisições protegidas. 
+// O JWT permite validar a identidade sem precisar consultar o banco 
+// de dados a cada clique, garantindo alta performance e segurança.
+// ============================================================================
 function verificarToken(req, res, next) {
     const token = req.headers['authorization'];
     if (!token) return res.status(401).json({ erro: 'Acesso negado. Token não fornecido.' });
@@ -199,7 +204,15 @@ app.post('/clientes', async (req, res) => {
         res.status(500).json({ erro: 'Erro ao cadastrar cliente.' });
     }
 });
-/** Excluir um Cliente (E sua conta de acesso) */
+/**
+ * ============================================================================
+ * [ARQUITETURA / LGPD]: EXCLUSÃO E SOFT DELETE VISUAL
+ * O banco possui chaves estrangeiras. Se apagarmos a cliente, o faturamento
+ * some do Dashboard da administradora. Resolvemos isso via engenharia: 
+ * Tratamos o erro '23503' (Foreign Key) e usamos abstração no Front-end 
+ * para ocultar a "Cliente Removida", mantendo os gráficos financeiros exatos.
+ * ============================================================================
+ */
 app.delete('/clientes/:id', verificarToken, async (req, res) => {
     // Apenas admins podem deletar
     if (req.usuario.tipo !== 'admin') return res.status(403).json({ erro: 'Acesso negado.' });
@@ -420,13 +433,24 @@ app.post('/agendar', verificarToken, async (req, res) => {
         strData += '-03:00';
     }
     const inicio = new Date(strData);
-
+    // ============================================================================
+    // [REGRA DE NEGÓCIO]: DEFENSIVE PROGRAMMING (VALIDAÇÃO DE DATA)
+    // Aqui garantimos que o usuário não consiga forçar via Postman
+    // ou console do navegador um agendamento para uma data 
+    // que já passou. Previne a corrupção do histórico da agenda da profissional.
+    // ============================================================================
     if (inicio < new Date()) {
         return res.status(400).json({ erro: 'Máquina do tempo bloqueada: Não é possível agendar em horários que já passaram.' });
     }
 
     const client = await db.connect();
     try {
+        // ============================================================================
+        // [ENGENHARIA / ACID]: TRANSAÇÕES E INTEGRIDADE RELACIONAL
+        // O comando 'BEGIN' trava o banco. Vamos tentar agendar 4 semanas seguidas.
+        // Se houver um choque de horário (concorrência) na 3ª semana, o 'ROLLBACK' 
+        // no bloco catch desfaz tudo. Ou salva tudo, ou não salva nada (Atomicidade).
+        // ============================================================================
         await client.query('BEGIN');
 
         const tel = telefone ? String(telefone).trim() : null;
@@ -661,7 +685,12 @@ app.post('/registro', async (req, res) => {
         if (checkUser.rows.length > 0) {
             return res.status(400).json({ erro: 'Este e-mail já está em uso.' });
         }
-
+        // ============================================================================
+        // [SEGURANÇA / BCRYPT]: CRIPTOGRAFIA IRREVERSÍVEL
+        // Aqui geramos um "salt" (ruído criptográfico) e aplicamos o hash.
+        // Cumprindo diretrizes de segurança, nem a Débora nem nós (desenvolvedores)
+        // temos acesso às senhas em texto puro das clientes no banco de dados.
+        // ============================================================================
         const salt = await bcrypt.genSalt(10);
         const hashSenha = await bcrypt.hash(senha, salt);
 
@@ -683,7 +712,13 @@ app.post('/registro', async (req, res) => {
 
         let emailEnviadoComSucesso = false;
 
-        // --- DISPARO DE E-MAIL PROTEGIDO (Não derruba o sistema se falhar) ---
+        // ============================================================================
+        // [INTEGRAÇÃO E RESILIÊNCIA]: RESEND API & FALLBACK
+        // Não usamos bibliotecas pesadas de SMTP. Fazemos um fetch direto via HTTPS.
+        // Além disso, aplicamos o padrão de "Graceful Degradation" (Fallback):
+        // Se a API externa de e-mail cair ou falhar, o sistema captura o erro (catch)
+        // e devolve o link de ativação simulado na tela, não interrompendo o negócio.
+        // ============================================================================
         if (process.env.RESEND_API_KEY) {
             try {
                 const resEmail = await fetch('https://api.resend.com/emails', {

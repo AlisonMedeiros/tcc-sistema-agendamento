@@ -1,3 +1,9 @@
+// ============================================================================
+// [PWA / SERVICE WORKER]: CACHE E OFFLINE FIRST
+// Este arquivo roda em segundo plano no navegador do celular. Ele intercepta
+// as requisições de rede e salva os arquivos estáticos (HTML/CSS) no cache.
+// É isso que faz o sistema carregar quase instantaneamente ("Fricção Zero").
+// ============================================================================
 const CACHE_NAME = 'gundem-v1';
 const urlsToCache = [
   '/',

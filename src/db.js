@@ -1,7 +1,12 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// Configurando a conexão usando as senhas do seu .env
+// ============================================================================
+// [INFRAESTRUTURA]: CONEXÃO SUPABASE (POSTGRESQL EM NUVEM)
+// Usamos Pool de conexões para não sobrecarregar o servidor com muitas
+// aberturas simultâneas. O "ssl: rejectUnauthorized: false" garante a 
+// comunicação criptografada entre a Render e o Supabase.
+// ============================================================================
 const pool = new Pool({
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
