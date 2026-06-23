@@ -2,10 +2,9 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // ============================================================================
-// [INFRAESTRUTURA]: CONEXÃO SUPABASE (POSTGRESQL EM NUVEM)
+// [INFRAESTRUTURA]: CONEXÃO SUPABASE (POSTGRESQL EM NUVEM) E LOCAL (DOCKER)
 // Usamos Pool de conexões para não sobrecarregar o servidor com muitas
-// aberturas simultâneas. O "ssl: rejectUnauthorized: false" garante a 
-// comunicação criptografada entre a Render e o Supabase.
+// aberturas simultâneas. A lógica abaixo desativa o SSL localmente e ativa na nuvem.
 // ============================================================================
 const pool = new Pool({
     user: process.env.DB_USER,
@@ -13,7 +12,8 @@ const pool = new Pool({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     database: process.env.DB_NAME,
-    ssl: { rejectUnauthorized: false }
+    // SE O HOST FOR 'db' (DOCKER LOCAL), DESLIGA O SSL. CASO CONTRÁRIO (SUPABASE), LIGA O SSL.
+    ssl: process.env.DB_HOST === 'db' ? false : { rejectUnauthorized: false }
 });
 
 // Testando a conexão

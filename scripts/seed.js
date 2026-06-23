@@ -4,10 +4,15 @@
  */
 
 const bcrypt = require('bcrypt');
-const db = require('../src/db');
+const db = require('../api/db'); // 👈 CORRIGIDO: Agora aponta para a pasta /api
 require('dotenv').config();
 
 const SALT_ROUNDS = 10;
+
+// Configuração da conta da Administradora
+const usuarios = [
+    { nome: 'Débora Braga', email: 'admin@gundem.com', senha: '123', tipo: 'admin' }
+];
 
 async function seed() {
     console.log('🌱 Iniciando seed de usuários...\n');

@@ -15,13 +15,15 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - gudem_db_data:/var/lib/postgresql/data
-      - ./docs/schema.sql:/docker-entrypoint-initdb.d/schema.sql # Inicializa o banco automaticamente
+      - "gudem_db_data:/var/lib/postgresql/data"
+      - "../docs/schema.sql:/docker-entrypoint-initdb.d/schema.sql"
     networks:
       - gudem-network
 
   app:
-    build: .
+    build: 
+      context: ..
+      dockerfile: infra/Dockerfile
     container_name: gudem-app
     restart: on-failure
     depends_on:
@@ -38,8 +40,8 @@ services:
       - DB_NAME=${DB_NAME:-agendamento_debora}
       - JWT_SECRET=${JWT_SECRET:-gudem_secreto_super_seguro_2026}
     volumes:
-      - .:/app
-      - /app/node_modules
+      - "..:/app"
+      - "/app/node_modules"
     networks:
       - gudem-network
 

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const db = require('../src/db');
+const db = require('../api/db');
 require('dotenv').config();
 
 async function runMigration() {

@@ -831,6 +831,7 @@ app.put('/perfil', verificarToken, async (req, res) => {
 });
 
 app.post('/login', async (req, res) => {
+    console.log("🚀 [DEBUG] Dados recebidos do Frontend:", req.body);
     const { email, senha } = req.body;
     try {
         const resultado = await db.query('SELECT * FROM usuarios WHERE email = $1', [email.toLowerCase().trim()]);
@@ -999,7 +1000,7 @@ app.get('/ativar', async (req, res) => {
 });
 
 // Inicialização do Servidor e Arquivos Estáticos
-const pastaPublica = path.resolve(__dirname, '../public');
+const pastaPublica = path.resolve(__dirname, '../web');
 app.use(express.static(pastaPublica));
 
 const HOST = '0.0.0.0';
